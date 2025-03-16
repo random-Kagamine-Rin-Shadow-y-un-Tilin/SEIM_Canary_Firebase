@@ -1,0 +1,20 @@
+{
+  "buildFiles": [
+    "C:\\Users\\diego\\Downloads\\Flutter\\flutter\\packages\\flutter_tools\\gradle\\src\\main\\groovy\\CMakeLists.txt"
+  ],
+  "cleanCommandsComponents": [
+    [
+      "C:\\Users\\diego\\AppData\\Local\\Android\\sdk\\cmake\\3.22.1\\bin\\ninja.exe",
+      "-C",
+      "C:\\Dart_apps\\flutter_apps\\5B25\\SEIM_Canary\\seim_canary\\android\\app\\.cxx\\Debug\\3n32673g\\arm64-v8a",
+      "clean"
+    ]
+  ],
+  "buildTargetsCommandComponents": [
+    "C:\\Users\\diego\\AppData\\Local\\Android\\sdk\\cmake\\3.22.1\\bin\\ninja.exe",
+    "-C",
+    "C:\\Dart_apps\\flutter_apps\\5B25\\SEIM_Canary\\seim_canary\\android\\app\\.cxx\\Debug\\3n32673g\\arm64-v8a",
+    "{LIST_OF_TARGETS_TO_BUILD}"
+  ],
+  "libraries": {}
+}
