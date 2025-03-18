@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 
 ThemeData themeMain() {
   return ThemeData(
-    //Color principales de la app
+    //Color principales de la app.
+    
     brightness: Brightness.dark,
     primaryColor: const Color.fromARGB(255, 255, 255, 255),
 
