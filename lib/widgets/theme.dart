@@ -3,12 +3,11 @@ import 'package:flutter/material.dart';
 ThemeData themeMain() {
   return ThemeData(
     //Color principales de la app
-    scaffoldBackgroundColor: const Color.fromARGB(255, 47, 68, 80),
+    brightness: Brightness.dark,
     primaryColor: const Color.fromARGB(255, 255, 255, 255),
 
     //Barra de la app / menu
     appBarTheme: const AppBarTheme(
-      backgroundColor: Color.fromARGB(255, 47, 68, 80),
       titleTextStyle: TextStyle(
         color: Color.fromARGB(255, 255, 255, 255),
         fontSize: 20,
@@ -75,7 +74,6 @@ ThemeData themeMain() {
       ),
     ),
     bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-      backgroundColor: Color(0xFF2F4450), // Color de fondo del menú
       selectedItemColor: Color.fromARGB(255, 71, 0, 119), // Color del ícono seleccionado
       unselectedItemColor: Colors.grey, // Color de los íconos no seleccionados
       showSelectedLabels: true,
