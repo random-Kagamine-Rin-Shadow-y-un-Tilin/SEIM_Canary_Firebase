@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:seim_canary/models/user_model.dart';
+import 'package:seim_canary/services/auth_service.dart';
 import 'package:seim_canary/services/firestore_service.dart';
-import 'package:uuid/uuid.dart'; // Add this import for generating unique IDs
+import 'package:uuid/uuid.dart';
 
 class RegisterUserScreen extends StatefulWidget {
   const RegisterUserScreen({super.key});
@@ -18,7 +19,7 @@ class _RegisterUserScreenState extends State<RegisterUserScreen> {
   final TextEditingController _passwordController = TextEditingController();
 
   final _formKey = GlobalKey<FormState>();
-  bool _isLoading = false; // Variable para mostrar el indicador de carga
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -29,38 +30,38 @@ class _RegisterUserScreenState extends State<RegisterUserScreen> {
     super.dispose();
   }
 
-  // Función para validar email
+  // Function to validate email
   bool _isValidEmail(String email) {
     final emailRegex =
         RegExp(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$");
     return emailRegex.hasMatch(email);
   }
 
-  // Función para verificar si el correo ya está registrado
+  // Function to check if email already exists
   Future<bool> _checkEmailExists(String email) async {
     try {
       final user = await FirebaseService().loginUser(email, '');
       return user != null;
     } catch (e) {
-      print('Error al verificar el correo: $e');
+      print('Error checking email: $e');
       return false;
     }
   }
 
-  // Función para registrar usuario
+  // Function to register user with email and password
   Future<void> _insertUser() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _isLoading = true); // Mostrar el indicador de carga
+    setState(() => _isLoading = true);
 
     try {
       String username = _usernameController.text.trim();
       String email = _emailController.text.trim();
       String phone = _phoneController.text.trim();
       String password = UserModel.hashPassword(
-          _passwordController.text.trim()); // Encriptar la contraseña
+          _passwordController.text.trim()); // Encrypt the password
 
-      // Verificar si el correo ya está registrado
+      // Check if email already exists
       bool emailExists = await _checkEmailExists(email);
       if (emailExists) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -69,16 +70,16 @@ class _RegisterUserScreenState extends State<RegisterUserScreen> {
         return;
       }
 
-      // Crear el objeto UserModel
+      // Create the UserModel
       var user = UserModel(
-        id: Uuid().v4(), // Generate a unique ID
+        id: Uuid().v4(),
         username: username,
         email: email,
         phone: phone,
-        password: password, // Contraseña encriptada
+        password: password,
       );
 
-      // Insertar el usuario en la base de datos
+      // Insert the user into the database
       await FirebaseService().addUser(user);
 
       if (!mounted) return;
@@ -92,10 +93,41 @@ class _RegisterUserScreenState extends State<RegisterUserScreen> {
       );
     } finally {
       if (mounted) {
-        setState(() => _isLoading = false); // Ocultar el indicador de carga
+        setState(() => _isLoading = false);
       }
     }
   }
+
+  // Function to register user with Google
+Future<void> _registerWithGoogle() async {
+  setState(() => _isLoading = true);
+
+  try {
+    print('Attempting Google Sign-In...');
+    final userModel = await AuthService().signInWithGoogle();
+    if (userModel != null) {
+      print('Google Sign-In successful: ${userModel.email}');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Usuario registrado con Google')),
+      );
+      Navigator.of(context).pop(); // Go back to the previous screen
+    } else {
+      print('Google Sign-In failed: UserModel is null');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error al registrar con Google')),
+      );
+    }
+  } catch (e) {
+    print('Error during Google Sign-In: $e');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error: $e')),
+    );
+  } finally {
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
+  }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -158,9 +190,19 @@ class _RegisterUserScreenState extends State<RegisterUserScreen> {
               const SizedBox(height: 16),
               _isLoading
                   ? const CircularProgressIndicator()
-                  : ElevatedButton(
-                      onPressed: _insertUser,
-                      child: const Text('Registrar'),
+                  : Column(
+                      children: [
+                        ElevatedButton(
+                          onPressed: _insertUser,
+                          child: const Text('Registrar'),
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton.icon(
+                          onPressed: _registerWithGoogle,
+                          icon: const Icon(Icons.login),
+                          label: const Text('Registrar con Google'),
+                        ),
+                      ],
                     ),
             ],
           ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:seim_canary/screens/Users/register.dart';
 import 'package:seim_canary/screens/home_page.dart';
+import 'package:seim_canary/services/auth_service.dart';
 import 'package:seim_canary/services/firestore_service.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -23,7 +24,7 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  Future<void> _login() async {
+  Future<void> _loginWithEmail() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
 
@@ -43,7 +44,7 @@ class _LoginScreenState extends State<LoginScreen> {
         if (mounted) {
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
-              builder: (context) => HomePage(user: userModel),
+              builder: (context) => HomePage(user: userModel), 
             ),
           );
         }
@@ -61,6 +62,30 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     }
   }
+
+Future<void> _loginWithGoogle() async {
+  setState(() => _isLoading = true);
+
+  try {
+    final userModel = await AuthService().signInWithGoogle();
+    if (userModel != null) {
+      // Navigate to HomePage with the UserModel
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (context) => HomePage(user: userModel),
+        ),
+      );
+    } else {
+      _showSnackBar('Error al obtener datos del usuario');
+    }
+  } catch (e) {
+    _showSnackBar('Error al iniciar sesión con Google: $e');
+  } finally {
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
+  }
+}
 
   // Método para mostrar un SnackBar con mensajes
   void _showSnackBar(String message) {
@@ -135,9 +160,15 @@ class _LoginScreenState extends State<LoginScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color.fromARGB(204, 56, 1, 129),
                     ),
-                    onPressed: _login,
+                    onPressed: _loginWithEmail,
                     child: const Text('Login'),
                   ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: _loginWithGoogle,
+              icon: const Icon(Icons.login),
+              label: const Text('Login with Google'),
+            ),
           ],
         ),
       ),
