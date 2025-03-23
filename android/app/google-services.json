@@ -12,7 +12,20 @@
           "package_name": "com.example.seim_canary"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "57944217344-cqunlh7bv6u4b5nhsjuli5crvl900j4v.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.seim_canary",
+            "certificate_hash": "77ed41186fc4a5d483ee0b507a71d0a20db31b9f"
+          }
+        },
+        {
+          "client_id": "57944217344-gja5ia55fkc3gg7ou3tka94jvfjsrde4.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyApVsfphRt975V7NpNF0fJQe_iub-4R_qM"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "57944217344-13pej7jqk94sduc65bmbdskc1hfnh4up.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

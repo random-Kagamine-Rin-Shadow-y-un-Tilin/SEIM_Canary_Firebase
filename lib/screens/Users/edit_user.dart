@@ -111,7 +111,7 @@ class _EditUserScreenState extends State<EditUserScreen> {
               height: 16,
             ),
             TextField(
-              style: const TextStyle(color: Colors.white),
+              style: const TextStyle(color: Colors.black),
               controller: _usernameController,
               decoration: const InputDecoration(labelText: 'Nombre de Usuario'),
             ),
@@ -119,7 +119,7 @@ class _EditUserScreenState extends State<EditUserScreen> {
               height: 16,
             ),
             TextField(
-              style: const TextStyle(color: Colors.white),
+              style: const TextStyle(color: Colors.black),
               controller: _emailController,
               decoration: const InputDecoration(labelText: 'Correo Electrónico'),
             ),
@@ -127,7 +127,7 @@ class _EditUserScreenState extends State<EditUserScreen> {
               height: 16,
             ),
             TextField(
-              style: const TextStyle(color: Colors.white),
+              style: const TextStyle(color: Colors.black),
               controller: _phoneController,
               decoration: const InputDecoration(labelText: 'Teléfono'),
               keyboardType: TextInputType.number,
