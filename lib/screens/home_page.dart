@@ -69,8 +69,8 @@ class _HomePageState extends State<HomePage> {
             label: 'Inicio',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.settings),
-            label: 'Configuraciones',
+            icon: Icon(Icons.smart_button_sharp),
+            label: 'Dispositivos',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.account_circle),
