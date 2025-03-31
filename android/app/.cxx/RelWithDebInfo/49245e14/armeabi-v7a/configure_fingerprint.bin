@@ -2,6 +2,7 @@ C/C++ Structured Logm
 k
 iC:\SEIM_Canary_Firebase\android\app\.cxx\RelWithDebInfo\49245e14\armeabi-v7a\additional_project_files.txtC
 A
+<<<<<<< HEAD
 ?com.android.build.gradle.internal.cxx.io.EncodedFileFingerPrint	­»äâÞ2 •»äâÞ2j
 h
 fC:\SEIM_Canary_Firebase\android\app\.cxx\RelWithDebInfo\49245e14\armeabi-v7a\android_gradle_build.json	­»äâÞ2¯ š»äâÞ2o
@@ -26,3 +27,29 @@ f
 dC:\SEIM_Canary_Firebase\android\app\.cxx\RelWithDebInfo\49245e14\armeabi-v7a\symbol_folder_index.txt	­»äâÞ2[ ¦»äâÞ2O
 M
 KC:\src\flutter\packages\flutter_tools\gradle\src\main\groovy\CMakeLists.txt	­»äâÞ2§ ÉžÐÎÛ2
+=======
+?com.android.build.gradle.internal.cxx.io.EncodedFileFingerPrint	ùáÈ“Þ2 ³ø–“Þ2j
+h
+fC:\SEIM_Canary_Firebase\android\app\.cxx\RelWithDebInfo\49245e14\armeabi-v7a\android_gradle_build.json	ùáÈ“Þ2¯ ¸ø–“Þ2o
+m
+kC:\SEIM_Canary_Firebase\android\app\.cxx\RelWithDebInfo\49245e14\armeabi-v7a\android_gradle_build_mini.json	úáÈ“Þ2Š Àø–“Þ2\
+Z
+XC:\SEIM_Canary_Firebase\android\app\.cxx\RelWithDebInfo\49245e14\armeabi-v7a\build.ninja	úáÈ“Þ2ØÕ Úö–“Þ2`
+^
+\C:\SEIM_Canary_Firebase\android\app\.cxx\RelWithDebInfo\49245e14\armeabi-v7a\build.ninja.txt	úáÈ“Þ2e
+c
+aC:\SEIM_Canary_Firebase\android\app\.cxx\RelWithDebInfo\49245e14\armeabi-v7a\build_file_index.txt	úáÈ“Þ2K Çø–“Þ2f
+d
+bC:\SEIM_Canary_Firebase\android\app\.cxx\RelWithDebInfo\49245e14\armeabi-v7a\compile_commands.json	úáÈ“Þ2j
+h
+fC:\SEIM_Canary_Firebase\android\app\.cxx\RelWithDebInfo\49245e14\armeabi-v7a\compile_commands.json.bin	úáÈ“Þ2	p
+n
+lC:\SEIM_Canary_Firebase\android\app\.cxx\RelWithDebInfo\49245e14\armeabi-v7a\metadata_generation_command.txt	úáÈ“Þ2
+Ö Âø–“Þ2c
+a
+_C:\SEIM_Canary_Firebase\android\app\.cxx\RelWithDebInfo\49245e14\armeabi-v7a\prefab_config.json	úáÈ“Þ2( Äø–“Þ2h
+f
+dC:\SEIM_Canary_Firebase\android\app\.cxx\RelWithDebInfo\49245e14\armeabi-v7a\symbol_folder_index.txt	úáÈ“Þ2[ Åø–“Þ2O
+M
+KC:\src\flutter\packages\flutter_tools\gradle\src\main\groovy\CMakeLists.txt	úáÈ“Þ2§ ÉžÐÎÛ2
+>>>>>>> 3811074353123adbd4ca8ae5d12c67f62072bebc

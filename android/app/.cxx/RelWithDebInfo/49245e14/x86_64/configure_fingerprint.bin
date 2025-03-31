@@ -2,6 +2,7 @@ C/C++ Structured Logh
 f
 dC:\SEIM_Canary_Firebase\android\app\.cxx\RelWithDebInfo\49245e14\x86_64\additional_project_files.txtC
 A
+<<<<<<< HEAD
 ?com.android.build.gradle.internal.cxx.io.EncodedFileFingerPrint	þˆåâÞ2 ÔˆåâÞ2e
 c
 aC:\SEIM_Canary_Firebase\android\app\.cxx\RelWithDebInfo\49245e14\x86_64\android_gradle_build.json	þˆåâÞ2¥ ÛˆåâÞ2j
@@ -26,3 +27,29 @@ a
 _C:\SEIM_Canary_Firebase\android\app\.cxx\RelWithDebInfo\49245e14\x86_64\symbol_folder_index.txt	þˆåâÞ2V íˆåâÞ2O
 M
 KC:\src\flutter\packages\flutter_tools\gradle\src\main\groovy\CMakeLists.txt	þˆåâÞ2§ ÉžÐÎÛ2
+=======
+?com.android.build.gradle.internal.cxx.io.EncodedFileFingerPrint	¤ãÈ“Þ2 —ª—“Þ2e
+c
+aC:\SEIM_Canary_Firebase\android\app\.cxx\RelWithDebInfo\49245e14\x86_64\android_gradle_build.json	¤ãÈ“Þ2¥ ª—“Þ2j
+h
+fC:\SEIM_Canary_Firebase\android\app\.cxx\RelWithDebInfo\49245e14\x86_64\android_gradle_build_mini.json	¤ãÈ“Þ2€ ¥ª—“Þ2W
+U
+SC:\SEIM_Canary_Firebase\android\app\.cxx\RelWithDebInfo\49245e14\x86_64\build.ninja	¤ãÈ“Þ2¿Õ Ë¨—“Þ2[
+Y
+WC:\SEIM_Canary_Firebase\android\app\.cxx\RelWithDebInfo\49245e14\x86_64\build.ninja.txt	¤ãÈ“Þ2`
+^
+\C:\SEIM_Canary_Firebase\android\app\.cxx\RelWithDebInfo\49245e14\x86_64\build_file_index.txt	¤ãÈ“Þ2K ¯ª—“Þ2a
+_
+]C:\SEIM_Canary_Firebase\android\app\.cxx\RelWithDebInfo\49245e14\x86_64\compile_commands.json	¤ãÈ“Þ2e
+c
+aC:\SEIM_Canary_Firebase\android\app\.cxx\RelWithDebInfo\49245e14\x86_64\compile_commands.json.bin	¤ãÈ“Þ2	k
+i
+gC:\SEIM_Canary_Firebase\android\app\.cxx\RelWithDebInfo\49245e14\x86_64\metadata_generation_command.txt	¤ãÈ“Þ2
+½ ¦ª—“Þ2^
+\
+ZC:\SEIM_Canary_Firebase\android\app\.cxx\RelWithDebInfo\49245e14\x86_64\prefab_config.json	¤ãÈ“Þ2( ¨ª—“Þ2c
+a
+_C:\SEIM_Canary_Firebase\android\app\.cxx\RelWithDebInfo\49245e14\x86_64\symbol_folder_index.txt	¤ãÈ“Þ2V «ª—“Þ2O
+M
+KC:\src\flutter\packages\flutter_tools\gradle\src\main\groovy\CMakeLists.txt	¤ãÈ“Þ2§ ÉžÐÎÛ2
+>>>>>>> 3811074353123adbd4ca8ae5d12c67f62072bebc
