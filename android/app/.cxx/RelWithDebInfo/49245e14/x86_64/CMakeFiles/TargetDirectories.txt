@@ -1,0 +1,2 @@
+C:/SEIM_Canary_Firebase/android/app/.cxx/RelWithDebInfo/49245e14/x86_64/CMakeFiles/edit_cache.dir
+C:/SEIM_Canary_Firebase/android/app/.cxx/RelWithDebInfo/49245e14/x86_64/CMakeFiles/rebuild_cache.dir

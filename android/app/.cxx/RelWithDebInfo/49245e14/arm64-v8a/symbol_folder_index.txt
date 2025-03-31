@@ -1,0 +1,1 @@
+C:\SEIM_Canary_Firebase\build\app\intermediates\cxx\RelWithDebInfo\49245e14\obj\arm64-v8a
