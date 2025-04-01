@@ -11,7 +11,8 @@ class ToggleDeviceScreen extends StatefulWidget {
 }
 
 class _ToggleDeviceScreenState extends State<ToggleDeviceScreen> {
-  final DatabaseReference _databaseRef = FirebaseDatabase.instance.ref('enchufe');
+  final DatabaseReference _databaseRef =
+      FirebaseDatabase.instance.ref('enchufe');
   Timer? _timer;
 
   @override
@@ -25,7 +26,8 @@ class _ToggleDeviceScreenState extends State<ToggleDeviceScreen> {
     _timer = Timer.periodic(const Duration(minutes: 1), (timer) async {
       String horaActual = DateFormat('HH:mm').format(DateTime.now());
 
-      DatabaseEvent horarioSnapshot = await _databaseRef.child("horario").once();
+      DatabaseEvent horarioSnapshot =
+          await _databaseRef.child("horario").once();
       DatabaseEvent estadoSnapshot = await _databaseRef.child("estado").once();
 
       final data = horarioSnapshot.snapshot.value;
@@ -35,9 +37,13 @@ class _ToggleDeviceScreenState extends State<ToggleDeviceScreen> {
         String? encenderHora = data["encender"];
         String? apagarHora = data["apagar"];
 
-        if (encenderHora != null && horaActual == encenderHora && !currentEstado) {
+        if (encenderHora != null &&
+            horaActual == encenderHora &&
+            !currentEstado) {
           await _updateState(true);
-        } else if (apagarHora != null && horaActual == apagarHora && currentEstado) {
+        } else if (apagarHora != null &&
+            horaActual == apagarHora &&
+            currentEstado) {
           await _updateState(false);
         }
       }
@@ -47,8 +53,11 @@ class _ToggleDeviceScreenState extends State<ToggleDeviceScreen> {
   /// Cambia el estado del enchufe en Firebase
   Future<void> _updateState(bool newValue) async {
     try {
+      print("Actualizando estado a: $newValue"); // Depuración
       await _databaseRef.update({"estado": newValue});
+      print("Estado actualizado exitosamente");
     } catch (e) {
+      print("Error al actualizar el estado: $e"); // Depuración
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: $e')),
       );
@@ -79,12 +88,13 @@ class _ToggleDeviceScreenState extends State<ToggleDeviceScreen> {
     );
 
     if (nuevaHora != null) {
-      String horaFinal = "${nuevaHora.hour.toString().padLeft(2, '0')}:${nuevaHora.minute.toString().padLeft(2, '0')}";
+      String horaFinal =
+          "${nuevaHora.hour.toString().padLeft(2, '0')}:${nuevaHora.minute.toString().padLeft(2, '0')}";
 
       // Actualizar Firebase con la nueva hora
       await _databaseRef.child("horario").update(
-        esEncender ? {"encender": horaFinal} : {"apagar": horaFinal},
-      );
+            esEncender ? {"encender": horaFinal} : {"apagar": horaFinal},
+          );
     }
   }
 
@@ -105,7 +115,7 @@ class _ToggleDeviceScreenState extends State<ToggleDeviceScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            /// **Tarjeta de configuración de horario en tiempo real**
+            /// *Tarjeta de configuración de horario en tiempo real*
             StreamBuilder<DatabaseEvent>(
               stream: _databaseRef.child("horario").onValue,
               builder: (context, snapshot) {
@@ -119,14 +129,16 @@ class _ToggleDeviceScreenState extends State<ToggleDeviceScreen> {
                 }
 
                 return Card(
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
                   elevation: 4,
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: Column(
                       children: [
                         const Text("Configuración de Horario",
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                            style: TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 12),
                         ListTile(
                           title: Text("Hora de Encendido: $encenderHora"),
@@ -150,29 +162,36 @@ class _ToggleDeviceScreenState extends State<ToggleDeviceScreen> {
             ),
             const SizedBox(height: 20),
 
-            /// **Tarjeta de Control de Estado en tiempo real**
+            /// *Tarjeta de Control de Estado en tiempo real*
             StreamBuilder<DatabaseEvent>(
               stream: _databaseRef.child("estado").onValue,
               builder: (context, snapshot) {
-                bool currentValue = snapshot.data?.snapshot.value as bool? ?? false;
+                final dynamic value = snapshot.data?.snapshot.value;
+                bool currentValue = value is bool ? value : false;
 
                 return Card(
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
                   elevation: 4,
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: Column(
                       children: [
                         const Text("Estado del Enchufe",
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                            style: TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 12),
                         SwitchListTile(
                           title: Text(
                             currentValue ? "ENCENDIDO" : "APAGADO",
-                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+                            style: const TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.w500),
                           ),
                           value: currentValue,
-                          onChanged: (bool value) => _updateState(value),
+                          onChanged: (bool value) {
+                            print("Estado cambiado a: $value"); // Depuración
+                            _updateState(value);
+                          },
                           activeColor: Colors.green,
                           inactiveThumbColor: Colors.red,
                         ),
