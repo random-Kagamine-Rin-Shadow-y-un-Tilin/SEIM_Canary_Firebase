@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:seim_canary/models/user_model.dart';
-import 'package:seim_canary/screens/Devices/register_device.dart';
-import 'package:seim_canary/screens/Devices/toggle_device.dart';
+import 'package:seim_canary/screens/Devices/historial_screen.dart';
+import 'package:seim_canary/screens/Devices/device.dart';
 import 'package:seim_canary/screens/Users/edit_user.dart';
 // import 'package:seim_canary/screens/home.dart';
 
@@ -29,8 +29,8 @@ class _HomePageState extends State<HomePage> {
   void _setupScreens() {
     setState(() {
       _widgetOptions = [
-        ToggleDeviceScreen(),
-        RegisterDeviceScreen(),
+        DeviceScreen(),
+        HistorialScreen(),
         EditUserScreen(
           user: _user, // Usa la variable de estado
           onUserUpdated: _onUserUpdated,
@@ -65,12 +65,12 @@ class _HomePageState extends State<HomePage> {
         onTap: _onItemTapped,
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Inicio',
+            icon: Icon(Icons.devices_other_rounded),
+            label: 'Dispositivos',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.smart_button_sharp),
-            label: 'Dispositivos',
+            icon: Icon(Icons.history_outlined),
+            label: 'Historial',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.account_circle),
