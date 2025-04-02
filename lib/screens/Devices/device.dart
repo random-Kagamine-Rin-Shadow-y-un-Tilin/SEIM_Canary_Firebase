@@ -14,6 +14,7 @@ class _DeviceScreenState extends State<DeviceScreen> {
   final DatabaseReference _databaseRef =
       FirebaseDatabase.instance.ref('enchufe');
   Timer? _timer;
+  DateTime? _encendidoTime;
 
   @override
   void initState() {
@@ -50,17 +51,28 @@ class _DeviceScreenState extends State<DeviceScreen> {
 
   Future<void> _updateState(bool newValue) async {
     try {
-      await _databaseRef.update({"estado": newValue});
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
-    }
-  }
+      String fechaActual = DateFormat('yyyy-MM-dd').format(DateTime.now());
 
-  Future<void> _updateDeviceName(String newName) async {
-    try {
-      await _databaseRef.update({"nombre": newName});
+      if (newValue) {
+        _encendidoTime = DateTime.now();
+      } else {
+        if (_encendidoTime != null) {
+          DateTime ahora = DateTime.now();
+          Duration encendidoDuration = ahora.difference(_encendidoTime!);
+          int minutosEncendido = encendidoDuration.inMinutes;
+
+          DatabaseEvent tiempoSnapshot =
+              await _databaseRef.child("tiempo/$fechaActual/tiempo").once();
+          int minutosPrevios = (tiempoSnapshot.snapshot.value as int?) ?? 0;
+
+          await _databaseRef.child("tiempo/$fechaActual").update({
+            "fecha": fechaActual,
+            "tiempo": minutosPrevios + minutosEncendido,
+          });
+        }
+      }
+
+      await _databaseRef.update({"estado": newValue});
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: $e')),
@@ -110,14 +122,6 @@ class _DeviceScreenState extends State<DeviceScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Controlar Enchufe'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () {
-              // Acción para agregar un nuevo dispositivo
-            },
-          ),
-        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -125,102 +129,48 @@ class _DeviceScreenState extends State<DeviceScreen> {
           stream: _databaseRef.onValue,
           builder: (context, snapshot) {
             final data = snapshot.data?.snapshot.value;
+            bool currentValue = false;
             String encenderHora = "--:--";
             String apagarHora = "--:--";
-            bool currentValue = false;
-            String deviceName = "Enchufe";
 
             if (data is Map<dynamic, dynamic>) {
+              currentValue = data["estado"] ?? false;
               encenderHora = data["horario"]?["encender"] ?? "--:--";
               apagarHora = data["horario"]?["apagar"] ?? "--:--";
-              currentValue = data["estado"] ?? false;
-              deviceName = data["nombre"] ?? "Enchufe";
             }
 
             return Center(
-              child: Card(
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-                elevation: 4,
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            deviceName,
-                            style: const TextStyle(
-                                fontSize: 18, fontWeight: FontWeight.bold),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.edit),
-                            onPressed: () async {
-                              TextEditingController controller =
-                                  TextEditingController(text: deviceName);
-                              String? newName = await showDialog<String>(
-                                context: context,
-                                builder: (context) => AlertDialog(
-                                  title: const Text("Editar Nombre"),
-                                  content: TextField(
-                                    controller: controller,
-                                    decoration: const InputDecoration(
-                                        hintText: "Nuevo nombre"),
-                                  ),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () => Navigator.pop(context),
-                                      child: const Text("Cancelar"),
-                                    ),
-                                    TextButton(
-                                      onPressed: () {
-                                        Navigator.pop(
-                                            context, controller.text);
-                                      },
-                                      child: const Text("Guardar"),
-                                    ),
-                                  ],
-                                ),
-                              );
-                              if (newName != null && newName.isNotEmpty) {
-                                _updateDeviceName(newName);
-                              }
-                            },
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      ListTile(
-                        title: Text("Hora de Encendido: $encenderHora"),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.access_time),
-                          onPressed: () => _seleccionarHora(context, true),
-                        ),
-                      ),
-                      ListTile(
-                        title: Text("Hora de Apagado: $apagarHora"),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.access_time),
-                          onPressed: () => _seleccionarHora(context, false),
-                        ),
-                      ),
-                      SwitchListTile(
-                        title: Text(
-                          currentValue ? "ENCENDIDO" : "APAGADO",
-                          style: const TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.w500),
-                        ),
-                        value: currentValue,
-                        onChanged: (bool value) => _updateState(value),
-                        activeColor: Colors.green,
-                        inactiveThumbColor: Colors.red,
-                      ),
-                    ],
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ListTile(
+                    title: Text("Hora de Encendido: $encenderHora"),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.access_time),
+                      onPressed: () => _seleccionarHora(context, true),
+                    ),
                   ),
-                ),
+                  ListTile(
+                    title: Text("Hora de Apagado: $apagarHora"),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.access_time),
+                      onPressed: () => _seleccionarHora(context, false),
+                    ),
+                  ),
+                  SwitchListTile(
+                    title: Text(
+                      currentValue ? "ENCENDIDO" : "APAGADO",
+                      style: const TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.w500),
+                    ),
+                    value: currentValue,
+                    onChanged: (bool value) async {
+                      await _updateState(value);
+                    },
+                    activeColor: Colors.green,
+                    inactiveThumbColor: Colors.red,
+                  ),
+                ],
               ),
             );
           },
