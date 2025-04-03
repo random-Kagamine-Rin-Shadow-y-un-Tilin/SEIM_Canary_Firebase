@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:seim_canary/models/user_model.dart';
 import 'package:seim_canary/screens/Devices/register_device.dart';
-import 'package:seim_canary/screens/Devices/toggle_device.dart';
+import 'package:seim_canary/screens/Devices/device.dart';
 import 'package:seim_canary/screens/Users/edit_user.dart';
 // import 'package:seim_canary/screens/home.dart';
 
@@ -29,7 +29,7 @@ class _HomePageState extends State<HomePage> {
   void _setupScreens() {
     setState(() {
       _widgetOptions = [
-        ToggleDeviceScreen(),
+        DeviceScreen(),
         RegisterDeviceScreen(),
         EditUserScreen(
           user: _user, // Usa la variable de estado
