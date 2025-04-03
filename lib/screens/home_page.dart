@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:seim_canary/models/user_model.dart';
-import 'package:seim_canary/screens/Devices/historial_screen.dart';
+import 'package:seim_canary/screens/Historial/historial_screen.dart';
 import 'package:seim_canary/screens/Devices/device.dart';
 import 'package:seim_canary/screens/Users/edit_user.dart';
 // import 'package:seim_canary/screens/home.dart';
