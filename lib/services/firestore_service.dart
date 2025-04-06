@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:seim_canary/models/device_model.dart';
 import 'package:seim_canary/models/user_model.dart';
 import 'package:bcrypt/bcrypt.dart';
 
@@ -154,5 +155,15 @@ class FirebaseService {
       print('Error al eliminar usuario: $e');
       rethrow;
     }
+
+  }
+
+  // Obtener dispositivos
+  Stream<List<DeviceModel>> getDevices(String collection) {
+    return _firestore.collection(collection).snapshots().map((snapshot) {
+      return snapshot.docs
+        .map((doc) => DeviceModel.fromDocumentSnapshot(doc))
+        .toList();
+    });
   }
 }

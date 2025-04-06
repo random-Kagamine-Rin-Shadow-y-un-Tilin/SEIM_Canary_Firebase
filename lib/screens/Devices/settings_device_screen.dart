@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_database/firebase_database.dart';
-import 'package:intl/intl.dart';
 
 class SettingsDeviceScreen extends StatefulWidget {
   final String deviceId;
-  final Map<dynamic, dynamic> deviceData;
+  final Map<String, dynamic> deviceData;
+  final Function(Map<String, dynamic>) onSave;
 
   const SettingsDeviceScreen({
     super.key,
     required this.deviceId,
     required this.deviceData,
+    required this.onSave,
   });
 
   @override
@@ -17,154 +17,193 @@ class SettingsDeviceScreen extends StatefulWidget {
 }
 
 class _SettingsDeviceScreenState extends State<SettingsDeviceScreen> {
-  late final DatabaseReference _deviceRef;
-  final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _typeController = TextEditingController();
+  late String? _selectedCategory;
+  late String? _selectedType;
+  bool _isUpdating = false;
+  
+  late Map<String, String> _localSchedule;
+  TimeOfDay? _turnOnTime;
+  TimeOfDay? _turnOffTime;
+
+  // Lista de categorías y tipos
+  final Map<String, List<String>> _deviceCategories = {
+    'Tostadoras': ['800w', '1200w', '1500w', '1800w'],
+    'Bombillas': ['Fluorescente', 'Halogena', 'LED', 'Incandescente'],
+    'Cafeteras': ['Italiana', 'ExpresoManual', 'Goteo'],
+    'Ventiladores': ['Mesa', 'Pared', 'Torre', 'Pie'],
+  };
 
   @override
   void initState() {
     super.initState();
-    _deviceRef = FirebaseDatabase.instance.ref('enchufe/${widget.deviceId}');
-    _nameController.text = widget.deviceData['nombre'] ?? 'Dispositivo sin nombre';
-    _typeController.text = widget.deviceData['categoria']?['tipo'] ?? '';
-  }
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _typeController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _updateDeviceName() async {
-    if (_nameController.text.trim().isNotEmpty) {
-      await _deviceRef.update({'nombre': _nameController.text.trim()});
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Nombre actualizado')),
+    // Inicializar con valores actuales
+    _selectedType = widget.deviceData['tipo'];
+    _selectedCategory = _getCategoryFromType(_selectedType);
+    
+    // Inicializar horario
+    _localSchedule = Map<String, String>.from(widget.deviceData['horario'] ?? {});
+    
+    if (_localSchedule['encender'] != null) {
+      final parts = _localSchedule['encender']!.split(':');
+      _turnOnTime = TimeOfDay(
+        hour: int.parse(parts[0]),
+        minute: int.parse(parts[1]),
+      );
+    }
+    
+    if (_localSchedule['apagar'] != null) {
+      final parts = _localSchedule['apagar']!.split(':');
+      _turnOffTime = TimeOfDay(
+        hour: int.parse(parts[0]),
+        minute: int.parse(parts[1]),
       );
     }
   }
 
-  Future<void> _updateDeviceType() async {
-    if (_typeController.text.trim().isNotEmpty) {
-      await _deviceRef.child('categoria/tipo').set(_typeController.text.trim());
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Tipo actualizado')),
-      );
+  String? _getCategoryFromType(String? type) {
+    if (type == null) return null;
+    for (final category in _deviceCategories.keys) {
+      if (_deviceCategories[category]!.contains(type)) {
+        return category;
+      }
     }
+    return null;
   }
 
-  Future<void> _selectTime(BuildContext context, bool esEncender) async {
-    final horario = widget.deviceData['horario'] ?? {};
-    final horaActual = esEncender ? horario['encender'] : horario['apagar'];
+  Future<void> _selectTime(BuildContext context, bool isTurnOn) async {
+    final initialTime = isTurnOn 
+        ? _turnOnTime ?? TimeOfDay.now()
+        : _turnOffTime ?? TimeOfDay.now();
 
-    TimeOfDay initialTime = horaActual != null
-        ? TimeOfDay(
-            hour: int.parse(horaActual.split(':')[0]),
-            minute: int.parse(horaActual.split(':')[1]),
-          )
-        : TimeOfDay.now();
-
-    TimeOfDay? nuevaHora = await showTimePicker(
+    final TimeOfDay? newTime = await showTimePicker(
       context: context,
       initialTime: initialTime,
     );
 
-    if (nuevaHora != null) {
-      String horaFinal =
-          "${nuevaHora.hour.toString().padLeft(2, '0')}:${nuevaHora.minute.toString().padLeft(2, '0')}";
-
-      await _deviceRef.child('horario').update(
-            esEncender ? {"encender": horaFinal} : {"apagar": horaFinal},
-          );
+    if (newTime != null) {
+      setState(() {
+        if (isTurnOn) {
+          _turnOnTime = newTime;
+          _localSchedule['encender'] = _formatTime(newTime);
+        } else {
+          _turnOffTime = newTime;
+          _localSchedule['apagar'] = _formatTime(newTime);
+        }
+      });
     }
   }
 
-  Future<void> _deleteDevice() async {
-    await _deviceRef.remove();
-    if (mounted) Navigator.pop(context);
+  String _formatTime(TimeOfDay time) {
+    return "${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}";
+  }
+
+  Future<void> _saveChanges() async {
+    if (_selectedType == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Seleccione un tipo válido')),
+      );
+      return;
+    }
+
+    setState(() => _isUpdating = true);
+
+    try {
+      final updateData = {
+        'tipo': _selectedType,
+        'horario': _localSchedule,
+      };
+
+      await widget.onSave(updateData);
+      
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al guardar: $e')),
+      );
+    } finally {
+      setState(() => _isUpdating = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final horario = widget.deviceData['horario'] ?? {};
-    final encenderHora = horario['encender'] ?? '--:--';
-    final apagarHora = horario['apagar'] ?? '--:--';
-    final deviceState = widget.deviceData['estado'] ?? false;
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Configuración del Dispositivo'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.delete),
-            onPressed: () {
-              showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('Eliminar Dispositivo'),
-                  content: const Text('¿Estás seguro de que quieres eliminar este dispositivo?'),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('Cancelar'),
-                    ),
-                    TextButton(
-                      onPressed: _deleteDevice,
-                      child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: ListView(
           children: [
-            TextField(
-              controller: _nameController,
-              decoration: InputDecoration(
-                labelText: 'Nombre del dispositivo',
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.check),
-                  onPressed: _updateDeviceName,
-                ),
+            // Selector de categoría
+            DropdownButtonFormField<String>(
+              value: _selectedCategory,
+              decoration: const InputDecoration(
+                labelText: 'Categoría',
+                border: OutlineInputBorder(),
               ),
+              items: _deviceCategories.keys.map((category) {
+                return DropdownMenuItem(
+                  value: category,
+                  child: Text(category),
+                );
+              }).toList(),
+              onChanged: (value) {
+                setState(() {
+                  _selectedCategory = value;
+                  _selectedType = null;
+                });
+              },
             ),
-            const SizedBox(height: 20),
-            TextField(
-              controller: _typeController,
-              decoration: InputDecoration(
-                labelText: 'Tipo de dispositivo',
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.check),
-                  onPressed: _updateDeviceType,
-                ),
+
+            const SizedBox(height: 16),
+
+            // Selector de tipo
+            DropdownButtonFormField<String>(
+              value: _selectedType,
+              decoration: const InputDecoration(
+                labelText: 'Tipo de Dispositivo',
+                border: OutlineInputBorder(),
               ),
+              items: _selectedCategory != null
+                  ? _deviceCategories[_selectedCategory]!.map((type) {
+                      return DropdownMenuItem(
+                        value: type,
+                        child: Text(type),
+                      );
+                    }).toList()
+                  : null,
+              onChanged: (value) {
+                setState(() => _selectedType = value);
+              },
             ),
-            const SizedBox(height: 20),
+
+            const SizedBox(height: 24),
+
+            // Configuración de horario
             ListTile(
-              title: Text('Hora de encendido: $encenderHora'),
+              title: Text('Hora de encendido: ${_turnOnTime != null ? _formatTime(_turnOnTime!) : '--:--'}'),
               trailing: IconButton(
                 icon: const Icon(Icons.access_time),
                 onPressed: () => _selectTime(context, true),
               ),
             ),
             ListTile(
-              title: Text('Hora de apagado: $apagarHora'),
+              title: Text('Hora de apagado: ${_turnOffTime != null ? _formatTime(_turnOffTime!) : '--:--'}'),
               trailing: IconButton(
                 icon: const Icon(Icons.access_time),
                 onPressed: () => _selectTime(context, false),
               ),
             ),
-            const SizedBox(height: 20),
-            SwitchListTile(
-              title: const Text('Estado del dispositivo'),
-              value: deviceState,
-              onChanged: (value) => _deviceRef.update({'estado': value}),
+
+            const SizedBox(height: 32),
+
+            // Botón de guardar
+            ElevatedButton(
+              onPressed: _isUpdating ? null : _saveChanges,
+              child: _isUpdating
+                  ? const CircularProgressIndicator()
+                  : const Text('GUARDAR CAMBIOS'),
             ),
           ],
         ),

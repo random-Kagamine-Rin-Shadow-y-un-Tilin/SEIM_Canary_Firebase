@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 
 class HistorialScreen extends StatefulWidget {
+  const HistorialScreen({super.key});
+
   @override
   _HistorialScreenState createState() => _HistorialScreenState();
 }
