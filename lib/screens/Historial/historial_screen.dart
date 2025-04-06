@@ -3,6 +3,8 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:fl_chart/fl_chart.dart';
 
 class HistorialScreen extends StatefulWidget {
+  const HistorialScreen({super.key});
+
   @override
   _HistorialScreenState createState() => _HistorialScreenState();
 }

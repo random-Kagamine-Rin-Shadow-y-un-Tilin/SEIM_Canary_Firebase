@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:seim_canary/models/user_model.dart';
-import 'package:seim_canary/screens/Historial/historial_screen.dart';
 import 'package:seim_canary/screens/Devices/device.dart';
+import 'package:seim_canary/screens/Historial/historial_screen.dart';
 import 'package:seim_canary/screens/Users/edit_user.dart';
 // import 'package:seim_canary/screens/home.dart';
 
@@ -65,12 +65,12 @@ class _HomePageState extends State<HomePage> {
         onTap: _onItemTapped,
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
-            icon: Icon(Icons.devices_other_rounded),
-            label: 'Dispositivos',
+            icon: Icon(Icons.home),
+            label: 'Inicio',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.history_outlined),
-            label: 'Historial',
+            icon: Icon(Icons.smart_button_sharp),
+            label: 'Dispositivos',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.account_circle),

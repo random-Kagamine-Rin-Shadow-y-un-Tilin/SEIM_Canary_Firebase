@@ -1,7 +1,5 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:firebase_database/firebase_database.dart';
-import 'package:intl/intl.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:seim_canary/screens/Devices/settings_device_screen.dart';
 
 class DeviceScreen extends StatefulWidget {
@@ -12,173 +10,78 @@ class DeviceScreen extends StatefulWidget {
 }
 
 class _DeviceScreenState extends State<DeviceScreen> {
-  final DatabaseReference _databaseRef =
-      FirebaseDatabase.instance.ref('enchufe');
-  Timer? _timer;
-  DateTime? _encendidoTime;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  bool _isToggling = false;
 
-  @override
-  void initState() {
-    super.initState();
-    _startAutomaticCheck();
+  // Función mejorada para obtener el tipo
+  String _getDisplayType(Map<String, dynamic> data) {
+    return data['tipo']?.toString() ?? 'No configurado';
   }
 
-  void _startAutomaticCheck() {
-    _timer = Timer.periodic(const Duration(minutes: 1), (timer) async {
-      String horaActual = DateFormat('HH:mm').format(DateTime.now());
+  // Función para obtener la categoría basada en el tipo
+  String? _getDisplayCategory(Map<String, dynamic> data) {
+    final type = data['tipo']?.toString();
+    if (type == null) return null;
+    
+    final categories = {
+      'Tostadoras': ['800w', '1200w', '1500w', '1800w'],
+      'Bombillas': ['Fluorescente', 'Halogena', 'LED', 'Incandescente'],
+      'Cafeteras': ['Italiana', 'ExpresoManual', 'Goteo'],
+      'Ventiladores': ['Mesa', 'Pared', 'Torre', 'Pie'],
+    };
 
-      try {
-        DatabaseEvent horarioSnapshot =
-            await _databaseRef.child("horario").once();
-        DatabaseEvent estadoSnapshot =
-            await _databaseRef.child("estado").once();
-
-        final horarioData = horarioSnapshot.snapshot.value;
-        bool currentEstado = estadoSnapshot.snapshot.value as bool? ?? false;
-
-        if (horarioData is Map<dynamic, dynamic>) {
-          String? encenderHora = horarioData["encender"];
-          String? apagarHora = horarioData["apagar"];
-
-          if (encenderHora != null &&
-              horaActual == encenderHora &&
-              !currentEstado) {
-            await _updateState(true);
-          } else if (apagarHora != null &&
-              horaActual == apagarHora &&
-              currentEstado) {
-            await _updateState(false);
-          }
-        }
-      } catch (e) {
-        debugPrint('Error in automatic check: $e');
+    for (final category in categories.keys) {
+      if (categories[category]!.any((t) => t.toLowerCase() == type.toLowerCase())) {
+        return category;
       }
-    });
+    }
+    
+    return null;
   }
 
-  Future<void> _updateState(bool newValue) async {
+  Future<void> _toggleDeviceState(String deviceId, bool currentStatus) async {
+    setState(() => _isToggling = true);
     try {
-      String fechaActual = DateFormat('yyyy-MM-dd').format(DateTime.now());
-
-      if (newValue) {
-        _encendidoTime = DateTime.now();
-      } else {
-        if (_encendidoTime != null) {
-          DateTime ahora = DateTime.now();
-          Duration encendidoDuration = ahora.difference(_encendidoTime!);
-          int minutosEncendido = encendidoDuration.inMinutes;
-
-          DatabaseEvent tiempoSnapshot =
-              await _databaseRef.child("tiempo/$fechaActual/tiempo").once();
-          int minutosPrevios = (tiempoSnapshot.snapshot.value as int?) ?? 0;
-
-          await _databaseRef.child("tiempo/$fechaActual").update({
-            "fecha": fechaActual,
-            "tiempo": minutosPrevios + minutosEncendido,
-          });
-        }
-      }
-
-      await _databaseRef.update({"estado": newValue});
+      await _firestore.collection('devices').doc(deviceId).update({
+        'estado': !currentStatus,
+      });
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
+        SnackBar(content: Text('Error al cambiar estado: $e')),
       );
+    } finally {
+      setState(() => _isToggling = false);
     }
   }
 
-  Future<void> _seleccionarHora(BuildContext context, bool esEncender) async {
+  Future<void> _handleSaveSettings(String deviceId, Map<String, dynamic> newData) async {
     try {
-      DatabaseEvent horarioSnapshot =
-          await _databaseRef.child("horario").once();
-      final data = horarioSnapshot.snapshot.value;
-
-      String? horaActual;
-      if (data is Map<dynamic, dynamic>) {
-        horaActual = esEncender ? data["encender"] : data["apagar"];
-      }
-
-      TimeOfDay initialTime = horaActual != null
-          ? TimeOfDay(
-              hour: int.parse(horaActual.split(":")[0]),
-              minute: int.parse(horaActual.split(":")[1]),
-            )
-          : TimeOfDay.now();
-
-      TimeOfDay? nuevaHora = await showTimePicker(
-        context: context,
-        initialTime: initialTime,
-      );
-
-      if (nuevaHora != null) {
-        String horaFinal =
-            "${nuevaHora.hour.toString().padLeft(2, '0')}:${nuevaHora.minute.toString().padLeft(2, '0')}";
-
-        await _databaseRef.child("horario").update(
-              esEncender ? {"encender": horaFinal} : {"apagar": horaFinal},
-            );
-      }
+      await _firestore.collection('devices').doc(deviceId).update(newData);
+      // Actualizar el estado local después de guardar
+      setState(() {});
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al seleccionar hora: $e')),
+        SnackBar(content: Text('Error al guardar configuración: $e')),
       );
+      throw Exception('Error al guardar configuración');
     }
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Controlar Enchufe'),
+        title: const Text('Dispositivos'),
       ),
-      body: StreamBuilder<DatabaseEvent>(
-        stream: _databaseRef.onValue,
+      body: StreamBuilder<QuerySnapshot>(
+        stream: _firestore.collection('devices').snapshots(),
         builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          }
+
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
-          }
-
-          if (snapshot.hasError) {
-            return Center(
-              child: Text('Error: ${snapshot.error}'),
-            );
-          }
-
-          final data = snapshot.data?.snapshot.value;
-
-          // Handle case where data is not a Map (might be a single value)
-          if (data == null) {
-            return const Center(
-              child: Text('No se encontraron dispositivos'),
-            );
-          }
-
-          // Convert data to list of devices
-          List<Map<String, dynamic>> devices = [];
-
-          if (data is Map<dynamic, dynamic>) {
-            devices = data.entries.map((entry) {
-              final deviceData = entry.value is Map
-                  ? Map<String, dynamic>.from(
-                      entry.value as Map<dynamic, dynamic>)
-                  : <String, dynamic>{};
-              return {
-                'id': entry.key.toString(),
-                ...deviceData,
-              };
-            }).toList();
-          }
-
-          if (devices.isEmpty) {
-            return const Center(
-              child: Text('No se encontraron dispositivos'),
-            );
           }
 
           return GridView.builder(
@@ -189,35 +92,54 @@ class _DeviceScreenState extends State<DeviceScreen> {
               mainAxisSpacing: 16,
               childAspectRatio: 0.9,
             ),
-            itemCount: devices.length,
+            itemCount: snapshot.data!.docs.length,
             itemBuilder: (context, index) {
-              final device = devices[index];
-              final deviceId = device['id'];
-              final deviceName = device['nombre'] ?? "Dispositivo sin nombre";
-              final deviceState =
-                  device['estado'] is bool ? device['estado'] as bool : false;
-              final categoria = device['categoria'] is Map
-                  ? device['categoria'] as Map<dynamic, dynamic>
-                  : {};
-              final deviceType =
-                  categoria['dispositivo']?.toString() ?? 'unknown';
-              final tipoDispositivo = categoria['tipo']?.toString() ?? '';
+              final doc = snapshot.data!.docs[index];
+              final data = doc.data() as Map<String, dynamic>;
+              final deviceState = data['estado'] ?? false;
+              final displayType = _getDisplayType(data);
+              final displayCategory = _getDisplayCategory(data);
 
               IconData icon;
               Color iconColor;
 
-              switch (deviceType) {
-                case "ventilador":
-                  icon = Icons.air;
-                  iconColor = Colors.blue;
-                  break;
-                case "bombillas":
+              // Asignación de iconos según tipo
+              switch (displayType.toLowerCase()) {
+                case 'fluorescente':
                   icon = Icons.lightbulb;
-                  iconColor = Colors.amber;
+                  iconColor = Colors.grey;
                   break;
-                case "tostadora":
+                case 'halogena':
+                  icon = Icons.lightbulb;
+                  iconColor = Colors.grey;
+                  break;
+                case 'incandescente':
+                  icon = Icons.lightbulb;
+                  iconColor = Colors.grey;
+                  break;
+                case 'led':
+                  icon = Icons.lightbulb;
+                  iconColor = Colors.grey;
+                  break;
+                case '800w':
+                case '1200w':
+                case '1500w':
+                case '1800w':
                   icon = Icons.kitchen;
-                  iconColor = Colors.brown;
+                  iconColor = Colors.grey;
+                  break;
+                case 'mesa':
+                case 'pared':
+                case 'torre':
+                case 'pie':
+                  icon = Icons.air_outlined;
+                  iconColor = Colors.blueGrey;
+                  break;
+                case 'italiana':
+                case 'expresomanual':
+                case 'goteo':
+                  icon = Icons.coffee;
+                  iconColor = Colors.grey;
                   break;
                 default:
                   icon = Icons.device_unknown;
@@ -225,11 +147,16 @@ class _DeviceScreenState extends State<DeviceScreen> {
               }
 
               return GestureDetector(
-                onTap: () => _updateState(!deviceState),
+                onTap: _isToggling 
+                    ? null 
+                    : () => _toggleDeviceState(doc.id, deviceState),
                 child: Container(
                   decoration: BoxDecoration(
                     color: Theme.of(context).cardColor,
                     borderRadius: BorderRadius.circular(16),
+                    border: deviceState
+                        ? Border.all(color: Colors.amber, width: 2)
+                        : null,
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withOpacity(0.1),
@@ -237,65 +164,59 @@ class _DeviceScreenState extends State<DeviceScreen> {
                         offset: const Offset(0, 3),
                       ),
                     ],
-                    border: deviceState
-                        ? Border.all(color: Colors.amber, width: 2)
-                        : null,
                   ),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Container(
-                        decoration: deviceState
-                            ? BoxDecoration(
-                                shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.amber.withOpacity(0.7),
-                                    spreadRadius: 5,
-                                    blurRadius: 10,
-                                  ),
-                                ],
-                              )
-                            : null,
-                        child: Icon(
-                          icon,
-                          size: 48,
-                          color: deviceState ? Colors.amber : iconColor,
-                        ),
+                      Icon(
+                        icon,
+                        size: 48,
+                        color: deviceState ? Colors.amber : iconColor,
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
                       Text(
-                        deviceName,
+                        displayCategory ?? 'Sin categoría',
                         style: const TextStyle(
-                          fontSize: 16,
                           fontWeight: FontWeight.bold,
+                          fontSize: 16,
                         ),
                         textAlign: TextAlign.center,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
                       ),
-                      if (tipoDispositivo.isNotEmpty)
-                        Text(
-                          tipoDispositivo,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[600],
-                          ),
+                      Text(
+                        'Tipo: $displayType',
+                        style: TextStyle(
+                          color: displayType == 'No configurado'
+                              ? Colors.orange
+                              : Colors.grey[600],
                         ),
-                      const SizedBox(height: 8),
+                      ),
+                      // Mostrar horario si existe
+                      if (data['horario'] != null) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          'Encender: ${data['horario']['encender'] ?? '--:--'}',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        Text(
+                          'Apagar: ${data['horario']['apagar'] ?? '--:--'}',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ],
                       IconButton(
                         icon: const Icon(Icons.settings),
-                        color: Colors.grey,
                         onPressed: () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
                               builder: (context) => SettingsDeviceScreen(
-                                deviceId: deviceId.toString(),
-                                deviceData: device,
+                                deviceId: doc.id,
+                                deviceData: data,
+                                onSave: (newData) => _handleSaveSettings(doc.id, newData),
                               ),
                             ),
-                          );
+                          ).then((_) {
+                            if (mounted) setState(() {});
+                          });
                         },
                       ),
                     ],
