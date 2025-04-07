@@ -1,17 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:seim_canary/models/user_model.dart';
-import 'package:seim_canary/screens/Users/login.dart'; // Importa LoginScreen
+import 'package:seim_canary/screens/Users/login.dart';
 import 'package:seim_canary/screens/Users/password.dart';
 import 'package:seim_canary/services/firestore_service.dart';
+import 'package:seim_canary/widgets/theme_provider.dart';
+import 'package:provider/provider.dart';
 
 class EditUserScreen extends StatefulWidget {
   final UserModel user;
-  final Function(UserModel) onUserUpdated; // Callback para actualizar el estado
+  final Function(UserModel) onUserUpdated;
 
   const EditUserScreen({
     super.key,
     required this.user,
-    required this.onUserUpdated, // Recibe el callback
+    required this.onUserUpdated,
   });
 
   @override
@@ -40,8 +42,6 @@ class _EditUserScreenState extends State<EditUserScreen> {
   }
 
   void _updateUser() async {
-    // Encripta la contraseña antes de actualizar el usuario
-
     var updatedUser = UserModel(
       id: widget.user.id,
       username: _usernameController.text,
@@ -59,7 +59,6 @@ class _EditUserScreenState extends State<EditUserScreen> {
       });
       if (!mounted) return;
 
-      // Llama al callback para actualizar el estado en la pantalla anterior
       widget.onUserUpdated(updatedUser);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Usuario actualizado con éxito")),
@@ -72,7 +71,6 @@ class _EditUserScreenState extends State<EditUserScreen> {
   }
 
   void _logout() {
-    // Redirige a LoginScreen y reemplaza la pantalla actual
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
         builder: (context) => const LoginScreen(),
@@ -81,7 +79,6 @@ class _EditUserScreenState extends State<EditUserScreen> {
   }
 
   void _navigateToChangePassword() {
-    // Navega a ChangePasswordScreen y pasa el ID del usuario actual
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => ChangePasswordScreen(
@@ -93,13 +90,24 @@ class _EditUserScreenState extends State<EditUserScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isWhite = themeProvider.isWhiteTheme;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Editar Usuario'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout), // Botón de logout
+            icon: Icon(isWhite ? Icons.dark_mode : Icons.light_mode),
+            onPressed: () {
+              themeProvider.toggleTheme();
+            },
+            tooltip: 'Cambiar tema',
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout),
             onPressed: _logout,
+            tooltip: 'Cerrar sesión',
           ),
         ],
       ),
@@ -107,27 +115,18 @@ class _EditUserScreenState extends State<EditUserScreen> {
         padding: const EdgeInsets.all(20.0),
         child: Column(
           children: [
-            const SizedBox(
-              height: 16,
-            ),
+            const SizedBox(height: 16),
             TextField(
-              style: const TextStyle(color: Colors.white),
               controller: _usernameController,
               decoration: const InputDecoration(labelText: 'Nombre de Usuario'),
             ),
-            const SizedBox(
-              height: 16,
-            ),
+            const SizedBox(height: 16),
             TextField(
-              style: const TextStyle(color: Colors.white),
               controller: _emailController,
               decoration: const InputDecoration(labelText: 'Correo Electrónico'),
             ),
-            const SizedBox(
-              height: 16,
-            ),
+            const SizedBox(height: 16),
             TextField(
-              style: const TextStyle(color: Colors.white),
               controller: _phoneController,
               decoration: const InputDecoration(labelText: 'Teléfono'),
               keyboardType: TextInputType.number,
@@ -137,13 +136,11 @@ class _EditUserScreenState extends State<EditUserScreen> {
               onPressed: _updateUser,
               child: const Text('Guardar Cambios'),
             ),
-            const SizedBox(
-              height: 16,
-            ),
+            const SizedBox(height: 16),
             TextButton(
               onPressed: _navigateToChangePassword,
               child: const Text('Cambiar Contraseña'),
-            )
+            ),
           ],
         ),
       ),

@@ -19,6 +19,8 @@ dependencies:
     sdk: flutter
   intl: ^0.20.2
   fl_chart: ^0.70.2
+  provider: ^6.1.1 # o la última versión estable
+
 
 dev_dependencies:
   flutter_test:
