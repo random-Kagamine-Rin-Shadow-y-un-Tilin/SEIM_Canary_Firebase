@@ -98,12 +98,15 @@ class _EditUserScreenState extends State<EditUserScreen> {
         title: const Text('Editar Usuario'),
         actions: [
           IconButton(
-            icon: Icon(isWhite ? Icons.dark_mode : Icons.light_mode),
+            icon: Icon(isWhite
+                ? Icons.light_mode
+                : Icons.dark_mode), // Invertimos la lógica
             onPressed: () {
               themeProvider.toggleTheme();
             },
             tooltip: 'Cambiar tema',
           ),
+          
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: _logout,

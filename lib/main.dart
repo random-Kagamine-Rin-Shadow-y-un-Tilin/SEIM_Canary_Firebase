@@ -10,14 +10,11 @@ import 'widgets/theme_provider.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
-  runApp(
-    ChangeNotifierProvider(create: (_) => ThemeProvider(),
-    child: const MainApp())
-    );
+  runApp(ChangeNotifierProvider(
+      create: (_) => ThemeProvider(), child: const MainApp()));
 }
 
 class MainApp extends StatelessWidget {
-  
   const MainApp({super.key});
 
   @override
@@ -25,8 +22,8 @@ class MainApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       themeMode: Provider.of<ThemeProvider>(context).themeMode,
-      theme: themeMainWhite(),
-      darkTheme: themeMain(),
+      theme: themeMain() ,
+      darkTheme: themeMainWhite(),
       title: 'SEIM',
       home: const LoginScreen(),
     );
