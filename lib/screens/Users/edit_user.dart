@@ -96,17 +96,15 @@ class _EditUserScreenState extends State<EditUserScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Editar Usuario'),
+        centerTitle: true,
         actions: [
           IconButton(
-            icon: Icon(isWhite
-                ? Icons.light_mode
-                : Icons.dark_mode), // Invertimos la lógica
+            icon: Icon(isWhite ? Icons.light_mode : Icons.dark_mode),
             onPressed: () {
               themeProvider.toggleTheme();
             },
             tooltip: 'Cambiar tema',
           ),
-          
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: _logout,
@@ -114,37 +112,75 @@ class _EditUserScreenState extends State<EditUserScreen> {
           ),
         ],
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(20.0),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 16),
-            TextField(
+            _buildInputField(
               controller: _usernameController,
-              decoration: const InputDecoration(labelText: 'Nombre de Usuario'),
+              label: 'Nombre de Usuario',
+              icon: Icons.person,
             ),
             const SizedBox(height: 16),
-            TextField(
+            _buildInputField(
               controller: _emailController,
-              decoration: const InputDecoration(labelText: 'Correo Electrónico'),
+              label: 'Correo Electrónico',
+              icon: Icons.email,
+              keyboardType: TextInputType.emailAddress,
             ),
             const SizedBox(height: 16),
-            TextField(
+            _buildInputField(
               controller: _phoneController,
-              decoration: const InputDecoration(labelText: 'Teléfono'),
-              keyboardType: TextInputType.number,
+              label: 'Teléfono',
+              icon: Icons.phone,
+              keyboardType: TextInputType.phone,
             ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _updateUser,
-              child: const Text('Guardar Cambios'),
+            const SizedBox(height: 24),
+            Center(
+              child: ElevatedButton.icon(
+                onPressed: _updateUser,
+                icon: const Icon(Icons.save),
+                label: const Text('Guardar Cambios'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
             ),
             const SizedBox(height: 16),
-            TextButton(
-              onPressed: _navigateToChangePassword,
-              child: const Text('Cambiar Contraseña'),
+            Center(
+              child: TextButton(
+                onPressed: _navigateToChangePassword,
+                child: const Text(
+                  'Cambiar Contraseña',
+                  style: TextStyle(fontSize: 16),
+                ),
+              ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInputField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    TextInputType keyboardType = TextInputType.text,
+  }) {
+    return TextField(
+      controller: controller,
+      keyboardType: keyboardType,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
         ),
       ),
     );

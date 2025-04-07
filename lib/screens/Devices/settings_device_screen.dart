@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:seim_canary/models/enchufe_model.dart';
 
 class SettingsDeviceScreen extends StatefulWidget {
   final String deviceId;
@@ -20,12 +21,11 @@ class _SettingsDeviceScreenState extends State<SettingsDeviceScreen> {
   late String? _selectedCategory;
   late String? _selectedType;
   bool _isUpdating = false;
-  
-  late Map<String, String> _localSchedule;
+
+  late Horario _horario;
   TimeOfDay? _turnOnTime;
   TimeOfDay? _turnOffTime;
 
-  // Lista de categorías y tipos
   final Map<String, List<String>> _deviceCategories = {
     'Tostadoras': ['800w', '1200w', '1500w', '1800w'],
     'Bombillas': ['Fluorescente', 'Halogena', 'LED', 'Incandescente'],
@@ -36,27 +36,22 @@ class _SettingsDeviceScreenState extends State<SettingsDeviceScreen> {
   @override
   void initState() {
     super.initState();
-    // Inicializar con valores actuales
     _selectedType = widget.deviceData['tipo'];
     _selectedCategory = _getCategoryFromType(_selectedType);
-    
-    // Inicializar horario
-    _localSchedule = Map<String, String>.from(widget.deviceData['horario'] ?? {});
-    
-    if (_localSchedule['encender'] != null) {
-      final parts = _localSchedule['encender']!.split(':');
-      _turnOnTime = TimeOfDay(
-        hour: int.parse(parts[0]),
-        minute: int.parse(parts[1]),
-      );
+
+    final horarioData = Map<String, String>.from(widget.deviceData['horario'] ?? {});
+    _horario = Horario(
+      encender: horarioData['encender'] ?? '--:--',
+      apagar: horarioData['apagar'] ?? '--:--',
+    );
+
+    if (_horario.encender != '--:--') {
+      final parts = _horario.encender.split(':');
+      _turnOnTime = TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
     }
-    
-    if (_localSchedule['apagar'] != null) {
-      final parts = _localSchedule['apagar']!.split(':');
-      _turnOffTime = TimeOfDay(
-        hour: int.parse(parts[0]),
-        minute: int.parse(parts[1]),
-      );
+    if (_horario.apagar != '--:--') {
+      final parts = _horario.apagar.split(':');
+      _turnOffTime = TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
     }
   }
 
@@ -71,23 +66,23 @@ class _SettingsDeviceScreenState extends State<SettingsDeviceScreen> {
   }
 
   Future<void> _selectTime(BuildContext context, bool isTurnOn) async {
-    final initialTime = isTurnOn 
-        ? _turnOnTime ?? TimeOfDay.now()
-        : _turnOffTime ?? TimeOfDay.now();
-
-    final TimeOfDay? newTime = await showTimePicker(
-      context: context,
-      initialTime: initialTime,
-    );
+    final initialTime = isTurnOn ? _turnOnTime ?? TimeOfDay.now() : _turnOffTime ?? TimeOfDay.now();
+    final TimeOfDay? newTime = await showTimePicker(context: context, initialTime: initialTime);
 
     if (newTime != null) {
       setState(() {
         if (isTurnOn) {
           _turnOnTime = newTime;
-          _localSchedule['encender'] = _formatTime(newTime);
+          _horario = Horario(
+            encender: _formatTime(newTime),
+            apagar: _horario.apagar,
+          );
         } else {
           _turnOffTime = newTime;
-          _localSchedule['apagar'] = _formatTime(newTime);
+          _horario = Horario(
+            encender: _horario.encender,
+            apagar: _formatTime(newTime),
+          );
         }
       });
     }
@@ -105,12 +100,12 @@ class _SettingsDeviceScreenState extends State<SettingsDeviceScreen> {
       return;
     }
 
-    setState(() => _isUpdating = true);
+        setState(() => _isUpdating = true);
 
     try {
       final updateData = {
         'tipo': _selectedType,
-        'horario': _localSchedule,
+        'horario': _horario.toJson(),
       };
 
       await widget.onSave(updateData);
