@@ -3,7 +3,6 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
 import 'package:seim_canary/screens/Users/login.dart';
 import 'package:seim_canary/widgets/theme.dart';
-// import 'package:provider/provider.dart';
 import 'package:seim_canary/widgets/theme_white.dart';
 import 'widgets/theme_provider.dart';
 

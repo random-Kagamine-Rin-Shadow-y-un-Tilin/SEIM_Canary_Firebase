@@ -10,8 +10,8 @@ class HistorialScreen extends StatefulWidget {
 }
 
 class _HistorialScreenState extends State<HistorialScreen> {
-  final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
-  Map<String, List<Map<String, dynamic>>> historial = {}; // Agrupado por tipo de enchufe
+  final DatabaseReference _dbRef = FirebaseDatabase.instance.ref().child('enchufes');
+  Map<String, List<Map<String, dynamic>>> historial = {};
 
   @override
   void initState() {
@@ -20,60 +20,68 @@ class _HistorialScreenState extends State<HistorialScreen> {
   }
 
   void obtenerHistorialDesdeFirebase() {
-    _dbRef.onValue.listen((event) {
-      if (!mounted) return; // Evita actualizar si el widget ya no está en pantalla
-      try {
-        final data = event.snapshot.value;
-        if (data is Map) {
-          Map<String, List<Map<String, dynamic>>> tempHistorial = {};
-          data.forEach((claveEnchufe, enchufeData) {
-            if (enchufeData is Map) {
-              // Accede correctamente a los valores de dispositivo y tipo dentro de categoria
-              String tipoEnchufe = enchufeData["categoria"]?["tipo"] ?? "Desconocido";
-              String dispositivo = enchufeData["categoria"]?["dispositivo"] ?? "Sin nombre";
+  _dbRef.onValue.listen((event) {
+    if (!mounted) return;
 
-              Map<String, dynamic>? tiempoData;
-              if (enchufeData["tiempo"] is Map) {
-                tiempoData = Map<String, dynamic>.from(enchufeData["tiempo"]);
-              } else if (enchufeData["horario"] is Map &&
-                  enchufeData["horario"]?["tiempo"] is Map) {
-                tiempoData = Map<String, dynamic>.from(enchufeData["horario"]["tiempo"]);
-              }
+    try {
+      final data = event.snapshot.value;
+      if (data == null) {
+        setState(() => historial = {});
+        return;
+      }
 
-              if (tiempoData != null) {
-                tiempoData.forEach((fecha, info) {
-                  if (info is Map && info.containsKey("tiempo")) {
-                    double tiempoEnMinutos = (info["tiempo"] is num)
-                        ? (info["tiempo"] as num).toDouble()
-                        : double.tryParse(info["tiempo"].toString()) ?? 0;
+      // Manejo de datos como lista o mapa
+      Map<String, dynamic> enchufesData;
+      if (data is List) {
+        // Convertir lista en mapa usando índices como claves
+        enchufesData = {
+          for (int i = 0; i < data.length; i++) i.toString(): data[i] ?? {}
+        };
+      } else if (data is Map) {
+        enchufesData = Map<String, dynamic>.from(data);
+      } else {
+        throw Exception('Formato de datos no compatible');
+      }
 
-                    tempHistorial.putIfAbsent(tipoEnchufe, () => []).add({
-                      "dispositivo": dispositivo,
-                      "fecha": fecha,
-                      "tiempo": tiempoEnMinutos,
-                    });
-                  }
-                });
-              }
+      // Procesar historial
+      Map<String, List<Map<String, dynamic>>> tempHistorial = {};
+      enchufesData.forEach((clave, enchufeData) {
+        if (enchufeData is Map) {
+          final categoria = enchufeData['categoria'] as Map?;
+          final tiempoData = enchufeData['tiempo'] as Map?;
+
+          final dispositivo = categoria?['dispositivo'] ?? 'Sin dispositivo';
+          final tipo = categoria?['tipo'] ?? 'Sin tipo';
+
+          tiempoData?.forEach((fecha, tiempo) {
+            if (tiempo is Map && tiempo.containsKey('tiempo')) {
+              final tiempoEnMinutos = tiempo['tiempo'] is num
+                  ? (tiempo['tiempo'] as num).toDouble()
+                  : double.tryParse('${tiempo['tiempo']}') ?? 0.0;
+
+              tempHistorial.putIfAbsent(dispositivo, () => []).add({
+                'tipo': tipo,
+                'fecha': fecha.toString(),
+                'tiempo': tiempoEnMinutos,
+              });
             }
           });
-
-          setState(() {
-            historial = tempHistorial;
-          });
         }
-      } catch (e) {
-        print("Error al obtener datos de Firebase: $e");
-      }
-    });
-  }
+      });
+
+      setState(() => historial = tempHistorial);
+    } catch (e) {
+      print('Error al procesar datos: $e');
+    }
+  });
+}
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("Historial por Tipo de Enchufe")),
+      appBar: AppBar(title: const Text("Historial de Enchufes")),
       body: historial.isEmpty
-          ? Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
               child: Column(
                 children: historial.entries.map((entry) {
@@ -83,13 +91,16 @@ class _HistorialScreenState extends State<HistorialScreen> {
                       elevation: 5,
                       child: ExpansionTile(
                         title: Text(
-                          "${entry.value.first["dispositivo"]} - ${entry.key}", // Nombre del dispositivo y tipo de enchufe
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          "${entry.key} - Tipo: ${entry.value.first['tipo'] ?? 'Desconocido'}",
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                         children: [
                           Container(
-                            height: 250, // Altura de la gráfica
-                            padding: EdgeInsets.all(10),
+                            height: 250,
+                            padding: const EdgeInsets.all(10),
                             child: BarChartWidget(entry.value),
                           ),
                         ],
@@ -106,7 +117,7 @@ class _HistorialScreenState extends State<HistorialScreen> {
 class BarChartWidget extends StatelessWidget {
   final List<Map<String, dynamic>> datos;
 
-  BarChartWidget(this.datos);
+  const BarChartWidget(this.datos, {super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -115,9 +126,13 @@ class BarChartWidget extends StatelessWidget {
     double maxTiempo = 0;
 
     for (int i = 0; i < datos.length; i++) {
-      fechas.add(datos[i]["fecha"]);
-      double tiempo = datos[i]["tiempo"];
-      maxTiempo = tiempo > maxTiempo ? tiempo : maxTiempo; // Determinar el máximo
+      final fecha = datos[i]['fecha'] ?? 'Sin Fecha';
+      final tiempo = datos[i]['tiempo'] is num
+          ? (datos[i]['tiempo'] as num).toDouble()
+          : 0.0;
+
+      fechas.add(fecha.toString());
+      maxTiempo = tiempo > maxTiempo ? tiempo : maxTiempo;
 
       barras.add(
         BarChartGroupData(
@@ -125,8 +140,13 @@ class BarChartWidget extends StatelessWidget {
           barRods: [
             BarChartRodData(
               toY: tiempo,
-              color: Colors.blue,
               width: 15,
+              borderRadius: BorderRadius.circular(5),
+              gradient: LinearGradient(
+                colors: [Colors.blue.shade400, Colors.blue.shade900],
+                begin: Alignment.bottomCenter,
+                end: Alignment.topCenter,
+              ),
             ),
           ],
         ),
@@ -134,24 +154,24 @@ class BarChartWidget extends StatelessWidget {
     }
 
     return Padding(
-      padding: EdgeInsets.all(8.0),
+      padding: const EdgeInsets.all(8.0),
       child: BarChart(
         BarChartData(
           alignment: BarChartAlignment.spaceAround,
-          maxY: maxTiempo + 10, // Ajusta automáticamente la altura del gráfico
+          maxY: maxTiempo + 10,
           titlesData: FlTitlesData(
             rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
             leftTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
-                reservedSize: 50, // Más espacio para que los números no se corten
+                reservedSize: 50,
                 getTitlesWidget: (value, meta) {
                   return Padding(
                     padding: const EdgeInsets.only(right: 8.0),
                     child: Text(
                       "${value.toInt()} min",
                       textAlign: TextAlign.right,
-                      style: TextStyle(fontSize: 12),
+                      style: const TextStyle(fontSize: 12)
                     ),
                   );
                 },
@@ -161,22 +181,36 @@ class BarChartWidget extends StatelessWidget {
               sideTitles: SideTitles(
                 showTitles: true,
                 getTitlesWidget: (value, meta) {
-                  int index = value.toInt();
+                  final index = value.toInt();
                   if (index >= 0 && index < fechas.length) {
                     return Text(
                       fechas[index],
-                      style: TextStyle(fontSize: 10),
+                      style: const TextStyle(fontSize: 10),
                     );
                   }
-                  return SizedBox.shrink(); // Evita errores en los índices fuera de rango
+                  return const SizedBox.shrink();
                 },
               ),
             ),
           ),
-          barTouchData: BarTouchData(enabled: true), // Permite interacción con las barras
+          barTouchData: BarTouchData(
+            enabled: true,
+            touchTooltipData: BarTouchTooltipData(
+              tooltipBgColor: Colors.blueGrey,
+              getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                if (group.x >= 0 && group.x < fechas.length) {
+                  return BarTooltipItem(
+                    '${fechas[group.x]}: ${rod.toY.toInt()} min',
+                    const TextStyle(color: Colors.white),
+                  );
+                }
+                return null;
+              },
+            ),
+          ),
           gridData: FlGridData(
             show: true,
-            checkToShowHorizontalLine: (value) => value % 10 == 0,
+            drawHorizontalLine: true,
             getDrawingHorizontalLine: (value) => FlLine(
               color: Colors.grey.withOpacity(0.3),
               strokeWidth: 1,

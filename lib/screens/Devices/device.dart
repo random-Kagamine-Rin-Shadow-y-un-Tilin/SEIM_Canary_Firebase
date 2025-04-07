@@ -1,5 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_database/firebase_database.dart';
+import 'package:seim_canary/models/enchufe_model.dart';
+import 'package:seim_canary/screens/Devices/register_device_screen.dart';
 import 'package:seim_canary/screens/Devices/settings_device_screen.dart';
 
 class DeviceScreen extends StatefulWidget {
@@ -10,60 +13,65 @@ class DeviceScreen extends StatefulWidget {
 }
 
 class _DeviceScreenState extends State<DeviceScreen> {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  bool _isToggling = false;
+  final DatabaseReference _dbRef = FirebaseDatabase.instance.ref().child('enchufes');
+  final Map<String, Timer> _timers = {}; // Manejador de temporizadores por dispositivo
+  final Map<String, int> _minuteCounters = {}; // Contadores de minutos por dispositivo
 
-  // Función mejorada para obtener el tipo
-  String _getDisplayType(Map<String, dynamic> data) {
-    return data['tipo']?.toString() ?? 'No configurado';
+  @override
+  void dispose() {
+    // Cancelar todos los temporizadores al salir
+    _timers.forEach((_, timer) => timer.cancel());
+    super.dispose();
   }
 
-  // Función para obtener la categoría basada en el tipo
-  String? _getDisplayCategory(Map<String, dynamic> data) {
-    final type = data['tipo']?.toString();
-    if (type == null) return null;
-    
-    final categories = {
-      'Tostadoras': ['800w', '1200w', '1500w', '1800w'],
-      'Bombillas': ['Fluorescente', 'Halogena', 'LED', 'Incandescente'],
-      'Cafeteras': ['Italiana', 'ExpresoManual', 'Goteo'],
-      'Ventiladores': ['Mesa', 'Pared', 'Torre', 'Pie'],
-    };
+  void _toggleDeviceState(EnchufeModel enchufe) {
+    setState(() {
+      enchufe.estado = !enchufe.estado;
 
-    for (final category in categories.keys) {
-      if (categories[category]!.any((t) => t.toLowerCase() == type.toLowerCase())) {
-        return category;
+      if (enchufe.estado) {
+        // Encendido: Iniciar temporizador
+        _startCountingMinutes(enchufe);
+      } else {
+        // Apagado: Detener temporizador y guardar datos
+        _stopCountingMinutes(enchufe);
       }
-    }
-    
-    return null;
+
+      // Actualizar estado en Firebase
+      _dbRef.child(enchufe.id).update({'estado': enchufe.estado});
+    });
   }
 
-  Future<void> _toggleDeviceState(String deviceId, bool currentStatus) async {
-    setState(() => _isToggling = true);
-    try {
-      await _firestore.collection('devices').doc(deviceId).update({
-        'estado': !currentStatus,
+  void _startCountingMinutes(EnchufeModel enchufe) {
+    // Inicializar el contador si no existe
+    if (!_minuteCounters.containsKey(enchufe.id)) {
+      _minuteCounters[enchufe.id] = 0;
+    }
+
+    // Crear un temporizador que aumente el contador cada minuto
+    _timers[enchufe.id]?.cancel(); // Cancelar temporizador anterior si existe
+    _timers[enchufe.id] = Timer.periodic(const Duration(minutes: 1), (timer) {
+      setState(() {
+        _minuteCounters[enchufe.id] = (_minuteCounters[enchufe.id] ?? 0) + 1;
       });
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al cambiar estado: $e')),
-      );
-    } finally {
-      setState(() => _isToggling = false);
-    }
+    });
   }
 
-  Future<void> _handleSaveSettings(String deviceId, Map<String, dynamic> newData) async {
-    try {
-      await _firestore.collection('devices').doc(deviceId).update(newData);
-      // Actualizar el estado local después de guardar
-      setState(() {});
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al guardar configuración: $e')),
-      );
-      throw Exception('Error al guardar configuración');
+  void _stopCountingMinutes(EnchufeModel enchufe) {
+    // Detener el temporizador
+    _timers[enchufe.id]?.cancel();
+    _timers.remove(enchufe.id);
+
+    // Guardar los datos en Firebase bajo "tiempo"
+    final int minutosEncendido = _minuteCounters[enchufe.id] ?? 0;
+    if (minutosEncendido > 0) {
+      final fechaActual = DateTime.now().toIso8601String().split('T')[0]; // Fecha en formato YYYY-MM-DD
+      final nuevoRegistro = {
+        'fecha': fechaActual,
+        'tiempo': minutosEncendido,
+      };
+
+      _dbRef.child('${enchufe.id}/tiempo/$fechaActual').set(nuevoRegistro);
+      _minuteCounters[enchufe.id] = 0; // Reiniciar contador
     }
   }
 
@@ -71,18 +79,71 @@ class _DeviceScreenState extends State<DeviceScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Dispositivos'),
+        title: const Text('Enchufes Registrados'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add),
+            tooltip: 'Registrar nuevo dispositivo',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => RegisterDeviceScreen(
+                    onDeviceAdded: (newDevice) async {
+                      await _dbRef.child(newDevice.id).set(newDevice.toJson());
+                      setState(() {});
+                    },
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: _firestore.collection('devices').snapshots(),
+      body: StreamBuilder<DatabaseEvent>(
+        stream: _dbRef.onValue.asBroadcastStream(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             return Center(child: Text('Error: ${snapshot.error}'));
           }
 
-          if (snapshot.connectionState == ConnectionState.waiting) {
+          if (snapshot.connectionState == ConnectionState.waiting || !snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
+
+          if (snapshot.data!.snapshot.value == null) {
+            return const Center(child: Text('No hay enchufes registrados.'));
+          }
+
+          final data = snapshot.data!.snapshot.value;
+          Map<String, dynamic> enchufesData;
+
+          if (data is List) {
+            enchufesData = {for (int i = 0; i < data.length; i++) i.toString(): data[i]};
+          } else if (data is Map) {
+            enchufesData = Map<String, dynamic>.from(data);
+          } else {
+            return const Center(child: Text('Formato de datos no compatible.'));
+          }
+
+          final enchufes = enchufesData.entries.map((entry) {
+            final id = entry.key;
+            final datos = Map<String, dynamic>.from(entry.value);
+
+            return EnchufeModel(
+              id: id,
+              nombre: datos['nombre'] ?? 'Sin nombre',
+              usuario: datos['usuario'] ?? '',
+              estado: datos['estado'] ?? false,
+              dispositivo: datos['categoria']['dispositivo'] ?? 'Sin dispositivo',
+              tipo: datos['categoria']['tipo'] ?? 'Sin tipo',
+              tiempo: (datos['tiempo'] as Map<dynamic, dynamic>? ?? {}).map((key, value) {
+                final valueMap = Map<String, dynamic>.from(value as Map);
+                return MapEntry(key.toString(), RegistroTiempo.fromJson(valueMap));
+              }),
+              horario: Horario.fromJson(Map<String, dynamic>.from(datos['horario'] ?? {})),
+            );
+          }).toList();
 
           return GridView.builder(
             padding: const EdgeInsets.all(16),
@@ -92,71 +153,17 @@ class _DeviceScreenState extends State<DeviceScreen> {
               mainAxisSpacing: 16,
               childAspectRatio: 0.9,
             ),
-            itemCount: snapshot.data!.docs.length,
+            itemCount: enchufes.length,
             itemBuilder: (context, index) {
-              final doc = snapshot.data!.docs[index];
-              final data = doc.data() as Map<String, dynamic>;
-              final deviceState = data['estado'] ?? false;
-              final displayType = _getDisplayType(data);
-              final displayCategory = _getDisplayCategory(data);
-
-              IconData icon;
-              Color iconColor;
-
-              // Asignación de iconos según tipo
-              switch (displayType.toLowerCase()) {
-                case 'fluorescente':
-                  icon = Icons.lightbulb;
-                  iconColor = Colors.grey;
-                  break;
-                case 'halogena':
-                  icon = Icons.lightbulb;
-                  iconColor = Colors.grey;
-                  break;
-                case 'incandescente':
-                  icon = Icons.lightbulb;
-                  iconColor = Colors.grey;
-                  break;
-                case 'led':
-                  icon = Icons.lightbulb;
-                  iconColor = Colors.grey;
-                  break;
-                case '800w':
-                case '1200w':
-                case '1500w':
-                case '1800w':
-                  icon = Icons.kitchen;
-                  iconColor = Colors.grey;
-                  break;
-                case 'mesa':
-                case 'pared':
-                case 'torre':
-                case 'pie':
-                  icon = Icons.air_outlined;
-                  iconColor = Colors.blueGrey;
-                  break;
-                case 'italiana':
-                case 'expresomanual':
-                case 'goteo':
-                  icon = Icons.coffee;
-                  iconColor = Colors.grey;
-                  break;
-                default:
-                  icon = Icons.device_unknown;
-                  iconColor = Colors.grey;
-              }
-
+              final enchufe = enchufes[index];
               return GestureDetector(
-                onTap: _isToggling 
-                    ? null 
-                    : () => _toggleDeviceState(doc.id, deviceState),
+                onTap: () {
+                  _toggleDeviceState(enchufe);
+                },
                 child: Container(
                   decoration: BoxDecoration(
                     color: Theme.of(context).cardColor,
                     borderRadius: BorderRadius.circular(16),
-                    border: deviceState
-                        ? Border.all(color: Colors.amber, width: 2)
-                        : null,
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withOpacity(0.1),
@@ -165,59 +172,53 @@ class _DeviceScreenState extends State<DeviceScreen> {
                       ),
                     ],
                   ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                  child: Stack(
                     children: [
-                      Icon(
-                        icon,
-                        size: 48,
-                        color: deviceState ? Colors.amber : iconColor,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        displayCategory ?? 'Sin categoría',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      Text(
-                        'Tipo: $displayType',
-                        style: TextStyle(
-                          color: displayType == 'No configurado'
-                              ? Colors.orange
-                              : Colors.grey[600],
-                        ),
-                      ),
-                      // Mostrar horario si existe
-                      if (data['horario'] != null) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          'Encender: ${data['horario']['encender'] ?? '--:--'}',
-                          style: const TextStyle(fontSize: 12),
-                        ),
-                        Text(
-                          'Apagar: ${data['horario']['apagar'] ?? '--:--'}',
-                          style: const TextStyle(fontSize: 12),
-                        ),
-                      ],
-                      IconButton(
-                        icon: const Icon(Icons.settings),
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => SettingsDeviceScreen(
-                                deviceId: doc.id,
-                                deviceData: data,
-                                onSave: (newData) => _handleSaveSettings(doc.id, newData),
-                              ),
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            enchufe.estado ? Icons.power : Icons.power_off,
+                            size: 48,
+                            color: enchufe.estado ? Colors.amber : Colors.grey,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            enchufe.nombre,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
                             ),
-                          ).then((_) {
-                            if (mounted) setState(() {});
-                          });
-                        },
+                          ),
+                          Text('Dispositivo: ${enchufe.dispositivo}'),
+                          Text('Tipo: ${enchufe.tipo}'),
+                        ],
+                      ),
+                      Align(
+                        alignment: Alignment.topRight,
+                        child: IconButton(
+                          icon: const Icon(Icons.settings, color: Colors.grey),
+                          tooltip: 'Configuración',
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => SettingsDeviceScreen(
+                                  deviceId: enchufe.id,
+                                  deviceData: {
+                                    'nombre': enchufe.nombre,
+                                    'tipo': enchufe.tipo,
+                                    'horario': enchufe.horario.toJson(),
+                                  },
+                                  onSave: (updatedData) async {
+                                    await _dbRef.child(enchufe.id).update(updatedData);
+                                    setState(() {});
+                                  },
+                                ),
+                              ),
+                            );
+                          },
+                        ),
                       ),
                     ],
                   ),
