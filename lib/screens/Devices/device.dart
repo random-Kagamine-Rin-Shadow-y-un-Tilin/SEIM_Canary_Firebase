@@ -13,9 +13,12 @@ class DeviceScreen extends StatefulWidget {
 }
 
 class _DeviceScreenState extends State<DeviceScreen> {
-  final DatabaseReference _dbRef = FirebaseDatabase.instance.ref().child('enchufes');
-  final Map<String, Timer> _timers = {}; // Manejador de temporizadores por dispositivo
-  final Map<String, int> _minuteCounters = {}; // Contadores de minutos por dispositivo
+  final DatabaseReference _dbRef =
+      FirebaseDatabase.instance.ref().child('enchufes');
+  final Map<String, Timer> _timers =
+      {}; // Manejador de temporizadores por dispositivo
+  final Map<String, int> _minuteCounters =
+      {}; // Contadores de minutos por dispositivo
 
   @override
   void dispose() {
@@ -64,7 +67,9 @@ class _DeviceScreenState extends State<DeviceScreen> {
     // Guardar los datos en Firebase bajo "tiempo"
     final int minutosEncendido = _minuteCounters[enchufe.id] ?? 0;
     if (minutosEncendido > 0) {
-      final fechaActual = DateTime.now().toIso8601String().split('T')[0]; // Fecha en formato YYYY-MM-DD
+      final fechaActual = DateTime.now()
+          .toIso8601String()
+          .split('T')[0]; // Fecha en formato YYYY-MM-DD
       final nuevoRegistro = {
         'fecha': fechaActual,
         'tiempo': minutosEncendido,
@@ -107,7 +112,8 @@ class _DeviceScreenState extends State<DeviceScreen> {
             return Center(child: Text('Error: ${snapshot.error}'));
           }
 
-          if (snapshot.connectionState == ConnectionState.waiting || !snapshot.hasData) {
+          if (snapshot.connectionState == ConnectionState.waiting ||
+              !snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
 
@@ -119,7 +125,9 @@ class _DeviceScreenState extends State<DeviceScreen> {
           Map<String, dynamic> enchufesData;
 
           if (data is List) {
-            enchufesData = {for (int i = 0; i < data.length; i++) i.toString(): data[i]};
+            enchufesData = {
+              for (int i = 0; i < data.length; i++) i.toString(): data[i]
+            };
           } else if (data is Map) {
             enchufesData = Map<String, dynamic>.from(data);
           } else {
@@ -135,13 +143,18 @@ class _DeviceScreenState extends State<DeviceScreen> {
               nombre: datos['nombre'] ?? 'Sin nombre',
               usuario: datos['usuario'] ?? '',
               estado: datos['estado'] ?? false,
-              dispositivo: datos['categoria']['dispositivo'] ?? 'Sin dispositivo',
+              dispositivo:
+                  datos['categoria']['dispositivo'] ?? 'Sin dispositivo',
               tipo: datos['categoria']['tipo'] ?? 'Sin tipo',
-              tiempo: (datos['tiempo'] as Map<dynamic, dynamic>? ?? {}).map((key, value) {
-                final valueMap = Map<String, dynamic>.from(value as Map);
-                return MapEntry(key.toString(), RegistroTiempo.fromJson(valueMap));
-              }),
-              horario: Horario.fromJson(Map<String, dynamic>.from(datos['horario'] ?? {})),
+              tiempo: (datos['tiempo'] is Map
+                  ? (datos['tiempo'] as Map<dynamic, dynamic>).map((key, value) {
+                      final valueMap = Map<String, dynamic>.from(value as Map);
+                      return MapEntry(
+                          key.toString(), RegistroTiempo.fromJson(valueMap));
+                    })
+                  : <String, RegistroTiempo>{}),
+              horario: Horario.fromJson(
+                  Map<String, dynamic>.from(datos['horario'] ?? {})),
             );
           }).toList();
 
@@ -174,8 +187,10 @@ class _DeviceScreenState extends State<DeviceScreen> {
                   ),
                   child: Stack(
                     children: [
+                      // Información centrada
                       Column(
                         mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           Icon(
                             enchufe.estado ? Icons.power : Icons.power_off,
@@ -185,15 +200,23 @@ class _DeviceScreenState extends State<DeviceScreen> {
                           const SizedBox(height: 8),
                           Text(
                             enchufe.nombre,
+                            textAlign: TextAlign.center,
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
                             ),
                           ),
-                          Text('Dispositivo: ${enchufe.dispositivo}'),
-                          Text('Tipo: ${enchufe.tipo}'),
+                          Text(
+                            'Dispositivo: ${enchufe.dispositivo}',
+                            textAlign: TextAlign.center,
+                          ),
+                          Text(
+                            'Tipo: ${enchufe.tipo}',
+                            textAlign: TextAlign.center,
+                          ),
                         ],
                       ),
+                      // Icono de configuración alineado en la parte superior derecha
                       Align(
                         alignment: Alignment.topRight,
                         child: IconButton(
@@ -211,7 +234,9 @@ class _DeviceScreenState extends State<DeviceScreen> {
                                     'horario': enchufe.horario.toJson(),
                                   },
                                   onSave: (updatedData) async {
-                                    await _dbRef.child(enchufe.id).update(updatedData);
+                                    await _dbRef
+                                        .child(enchufe.id)
+                                        .update(updatedData);
                                     setState(() {});
                                   },
                                 ),

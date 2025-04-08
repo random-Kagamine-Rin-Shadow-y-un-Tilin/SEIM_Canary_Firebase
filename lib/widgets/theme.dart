@@ -75,7 +75,7 @@ ThemeData themeMain() {
       ),
     ),
     bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-      selectedItemColor: Color.fromARGB(255, 71, 0, 119), // Color del ícono seleccionado
+      selectedItemColor: Color.fromARGB(255, 145, 16, 231), // Color del ícono seleccionado
       unselectedItemColor: Colors.grey, // Color de los íconos no seleccionados
       showSelectedLabels: true,
       showUnselectedLabels: true,

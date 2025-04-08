@@ -33,7 +33,6 @@ class _HistorialScreenState extends State<HistorialScreen> {
       // Manejo de datos como lista o mapa
       Map<String, dynamic> enchufesData;
       if (data is List) {
-        // Convertir lista en mapa usando índices como claves
         enchufesData = {
           for (int i = 0; i < data.length; i++) i.toString(): data[i] ?? {}
         };
@@ -48,12 +47,25 @@ class _HistorialScreenState extends State<HistorialScreen> {
       enchufesData.forEach((clave, enchufeData) {
         if (enchufeData is Map) {
           final categoria = enchufeData['categoria'] as Map?;
-          final tiempoData = enchufeData['tiempo'] as Map?;
+          final rawTiempo = enchufeData['tiempo'];
 
           final dispositivo = categoria?['dispositivo'] ?? 'Sin dispositivo';
           final tipo = categoria?['tipo'] ?? 'Sin tipo';
 
-          tiempoData?.forEach((fecha, tiempo) {
+          // Convertir el tiempo en un Map uniforme
+          Map<String, dynamic> tiempoData = {};
+          if (rawTiempo is Map) {
+            tiempoData = Map<String, dynamic>.from(rawTiempo);
+          } else if (rawTiempo is List) {
+            for (int i = 0; i < rawTiempo.length; i++) {
+              final item = rawTiempo[i];
+              if (item != null) {
+                tiempoData[i.toString()] = item;
+              }
+            }
+          }
+
+          tiempoData.forEach((fecha, tiempo) {
             if (tiempo is Map && tiempo.containsKey('tiempo')) {
               final tiempoEnMinutos = tiempo['tiempo'] is num
                   ? (tiempo['tiempo'] as num).toDouble()
@@ -75,6 +87,7 @@ class _HistorialScreenState extends State<HistorialScreen> {
     }
   });
 }
+
 
   @override
   Widget build(BuildContext context) {

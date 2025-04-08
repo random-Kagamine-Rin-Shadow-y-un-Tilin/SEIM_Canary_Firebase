@@ -3,7 +3,6 @@ import 'package:seim_canary/models/user_model.dart';
 import 'package:seim_canary/screens/Devices/device.dart';
 import 'package:seim_canary/screens/Historial/historial_screen.dart';
 import 'package:seim_canary/screens/Users/edit_user.dart';
-// import 'package:seim_canary/screens/home.dart';
 
 class HomePage extends StatefulWidget {
   final UserModel user;
@@ -69,7 +68,7 @@ class _HomePageState extends State<HomePage> {
             label: 'Inicio',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.smart_button_sharp),
+            icon: Icon(Icons.devices),
             label: 'Dispositivos',
           ),
           BottomNavigationBarItem(

@@ -75,7 +75,7 @@ ThemeData themeMainWhite() {
 
     bottomNavigationBarTheme: const BottomNavigationBarThemeData(
       backgroundColor: Colors.white,
-      selectedItemColor: Colors.blue,
+      selectedItemColor: Color.fromARGB(255, 145, 16, 231),
       unselectedItemColor: Colors.grey,
       showSelectedLabels: true,
       showUnselectedLabels: true,
