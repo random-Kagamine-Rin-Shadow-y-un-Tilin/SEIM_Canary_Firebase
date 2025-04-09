@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:seim_canary/models/enchufe_model.dart';
 import 'package:seim_canary/screens/Devices/register_device_screen.dart';
 import 'package:seim_canary/screens/Devices/settings_device_screen.dart';
+import 'package:permission_handler/permission_handler.dart';  // Importa el paquete
 
 class DeviceScreen extends StatefulWidget {
   const DeviceScreen({super.key});
@@ -13,45 +15,96 @@ class DeviceScreen extends StatefulWidget {
 }
 
 class _DeviceScreenState extends State<DeviceScreen> {
-  final DatabaseReference _dbRef =
-      FirebaseDatabase.instance.ref().child('enchufes');
-  final Map<String, Timer> _timers =
-      {}; // Manejador de temporizadores por dispositivo
-  final Map<String, int> _minuteCounters =
-      {}; // Contadores de minutos por dispositivo
+  final DatabaseReference _dbRef = FirebaseDatabase.instance.ref().child('enchufes');
+  final Map<String, Timer> _timers = {};
+  final Map<String, int> _minuteCounters = {};
 
   @override
   void dispose() {
-    // Cancelar todos los temporizadores al salir
     _timers.forEach((_, timer) => timer.cancel());
     super.dispose();
   }
 
-  void _toggleDeviceState(EnchufeModel enchufe) {
+  // Función para solicitar permisos de Bluetooth y ubicación
+  Future<void> requestBluetoothPermissions() async {
+    // Solicitar permisos de Bluetooth y ubicación
+    await [
+      Permission.bluetoothScan,
+      Permission.bluetoothConnect,
+      Permission.location,
+    ].request();
+  }
+
+  Future<void> sendBLECommand(String deviceName, String command) async {
+    BluetoothDevice? targetDevice;
+
+    // Solicitar permisos antes de continuar
+    await requestBluetoothPermissions();
+
+    // Iniciar escaneo
+    await FlutterBluePlus.startScan(timeout: const Duration(seconds: 5));
+
+    // Escuchar una vez los resultados del escaneo
+    List<ScanResult> scanResults = await FlutterBluePlus.scanResults.first;
+
+    // Buscar el dispositivo por nombre
+    for (ScanResult r in scanResults) {
+      if (r.device.platformName == deviceName) {
+        targetDevice = r.device;
+        break;
+      }
+    }
+
+    // Detener escaneo
+    await FlutterBluePlus.stopScan();
+
+    if (targetDevice != null) {
+      // Conectar al dispositivo
+      await targetDevice.connect();
+
+      // Descubrir servicios
+      List<BluetoothService> services = await targetDevice.discoverServices();
+
+      final characteristicUUID = Guid("abcd1234-ab12-cd34-ef56-1234567890ab");
+
+      for (BluetoothService service in services) {
+        for (BluetoothCharacteristic characteristic in service.characteristics) {
+          if (characteristic.uuid == characteristicUUID) {
+            await characteristic.write(command.codeUnits);
+            break;
+          }
+        }
+      }
+
+      await targetDevice.disconnect();
+    } else {
+      print("Dispositivo $deviceName no encontrado.");
+    }
+  }
+
+  void _toggleDeviceState(EnchufeModel enchufe) async {
     setState(() {
       enchufe.estado = !enchufe.estado;
 
       if (enchufe.estado) {
-        // Encendido: Iniciar temporizador
         _startCountingMinutes(enchufe);
       } else {
-        // Apagado: Detener temporizador y guardar datos
         _stopCountingMinutes(enchufe);
       }
 
-      // Actualizar estado en Firebase
       _dbRef.child(enchufe.id).update({'estado': enchufe.estado});
     });
+
+    final comando = enchufe.estado ? "ON" : "OFF";
+    await sendBLECommand("ESP32_RELE", comando); // Cambia por el nombre BLE real si es necesario
   }
 
   void _startCountingMinutes(EnchufeModel enchufe) {
-    // Inicializar el contador si no existe
     if (!_minuteCounters.containsKey(enchufe.id)) {
       _minuteCounters[enchufe.id] = 0;
     }
 
-    // Crear un temporizador que aumente el contador cada minuto
-    _timers[enchufe.id]?.cancel(); // Cancelar temporizador anterior si existe
+    _timers[enchufe.id]?.cancel();
     _timers[enchufe.id] = Timer.periodic(const Duration(minutes: 1), (timer) {
       setState(() {
         _minuteCounters[enchufe.id] = (_minuteCounters[enchufe.id] ?? 0) + 1;
@@ -60,23 +113,19 @@ class _DeviceScreenState extends State<DeviceScreen> {
   }
 
   void _stopCountingMinutes(EnchufeModel enchufe) {
-    // Detener el temporizador
     _timers[enchufe.id]?.cancel();
     _timers.remove(enchufe.id);
 
-    // Guardar los datos en Firebase bajo "tiempo"
     final int minutosEncendido = _minuteCounters[enchufe.id] ?? 0;
     if (minutosEncendido > 0) {
-      final fechaActual = DateTime.now()
-          .toIso8601String()
-          .split('T')[0]; // Fecha en formato YYYY-MM-DD
+      final fechaActual = DateTime.now().toIso8601String().split('T')[0];
       final nuevoRegistro = {
         'fecha': fechaActual,
         'tiempo': minutosEncendido,
       };
 
       _dbRef.child('${enchufe.id}/tiempo/$fechaActual').set(nuevoRegistro);
-      _minuteCounters[enchufe.id] = 0; // Reiniciar contador
+      _minuteCounters[enchufe.id] = 0;
     }
   }
 
@@ -112,8 +161,7 @@ class _DeviceScreenState extends State<DeviceScreen> {
             return Center(child: Text('Error: ${snapshot.error}'));
           }
 
-          if (snapshot.connectionState == ConnectionState.waiting ||
-              !snapshot.hasData) {
+          if (snapshot.connectionState == ConnectionState.waiting || !snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
 
@@ -143,8 +191,7 @@ class _DeviceScreenState extends State<DeviceScreen> {
               nombre: datos['nombre'] ?? 'Sin nombre',
               usuario: datos['usuario'] ?? '',
               estado: datos['estado'] ?? false,
-              dispositivo:
-                  datos['categoria']['dispositivo'] ?? 'Sin dispositivo',
+              dispositivo: datos['categoria']['dispositivo'] ?? 'Sin dispositivo',
               tipo: datos['categoria']['tipo'] ?? 'Sin tipo',
               tiempo: (datos['tiempo'] is Map
                   ? (datos['tiempo'] as Map<dynamic, dynamic>).map((key, value) {
@@ -153,8 +200,7 @@ class _DeviceScreenState extends State<DeviceScreen> {
                           key.toString(), RegistroTiempo.fromJson(valueMap));
                     })
                   : <String, RegistroTiempo>{}),
-              horario: Horario.fromJson(
-                  Map<String, dynamic>.from(datos['horario'] ?? {})),
+              horario: Horario.fromJson(Map<String, dynamic>.from(datos['horario'] ?? {})),
             );
           }).toList();
 
@@ -187,7 +233,6 @@ class _DeviceScreenState extends State<DeviceScreen> {
                   ),
                   child: Stack(
                     children: [
-                      // Información centrada
                       Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.center,
@@ -206,17 +251,10 @@ class _DeviceScreenState extends State<DeviceScreen> {
                               fontSize: 16,
                             ),
                           ),
-                          Text(
-                            'Dispositivo: ${enchufe.dispositivo}',
-                            textAlign: TextAlign.center,
-                          ),
-                          Text(
-                            'Tipo: ${enchufe.tipo}',
-                            textAlign: TextAlign.center,
-                          ),
+                          Text('Dispositivo: ${enchufe.dispositivo}', textAlign: TextAlign.center),
+                          Text('Tipo: ${enchufe.tipo}', textAlign: TextAlign.center),
                         ],
                       ),
-                      // Icono de configuración alineado en la parte superior derecha
                       Align(
                         alignment: Alignment.topRight,
                         child: IconButton(
@@ -234,9 +272,7 @@ class _DeviceScreenState extends State<DeviceScreen> {
                                     'horario': enchufe.horario.toJson(),
                                   },
                                   onSave: (updatedData) async {
-                                    await _dbRef
-                                        .child(enchufe.id)
-                                        .update(updatedData);
+                                    await _dbRef.child(enchufe.id).update(updatedData);
                                     setState(() {});
                                   },
                                 ),
