@@ -5,7 +5,8 @@ import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:seim_canary/models/enchufe_model.dart';
 import 'package:seim_canary/screens/Devices/register_device_screen.dart';
 import 'package:seim_canary/screens/Devices/settings_device_screen.dart';
-import 'package:permission_handler/permission_handler.dart';  // Importa el paquete
+import 'package:permission_handler/permission_handler.dart';
+import 'package:seim_canary/services/current_user.dart';
 
 class DeviceScreen extends StatefulWidget {
   const DeviceScreen({super.key});
@@ -27,7 +28,6 @@ class _DeviceScreenState extends State<DeviceScreen> {
 
   // Función para solicitar permisos de Bluetooth y ubicación
   Future<void> requestBluetoothPermissions() async {
-    // Solicitar permisos de Bluetooth y ubicación
     await [
       Permission.bluetoothScan,
       Permission.bluetoothConnect,
@@ -96,7 +96,7 @@ class _DeviceScreenState extends State<DeviceScreen> {
     });
 
     final comando = enchufe.estado ? "ON" : "OFF";
-    await sendBLECommand("ESP32_RELE", comando); // Cambia por el nombre BLE real si es necesario
+    await sendBLECommand("ESP32_RELE", comando);
   }
 
   void _startCountingMinutes(EnchufeModel enchufe) {
@@ -131,6 +131,19 @@ class _DeviceScreenState extends State<DeviceScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final currentUser = CurrentUser().user;
+
+    if (currentUser == null) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Enchufes Registrados'),
+        ),
+        body: const Center(
+          child: Text('No se encontró un usuario autenticado.'),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Enchufes Registrados'),
@@ -144,7 +157,9 @@ class _DeviceScreenState extends State<DeviceScreen> {
                 MaterialPageRoute(
                   builder: (context) => RegisterDeviceScreen(
                     onDeviceAdded: (newDevice) async {
-                      await _dbRef.child(newDevice.id).set(newDevice.toJson());
+                      final deviceData = newDevice.toJson();
+                      deviceData['usuario'] = currentUser.id;
+                      await _dbRef.child(newDevice.id).set(deviceData);
                       setState(() {});
                     },
                   ),
@@ -155,7 +170,7 @@ class _DeviceScreenState extends State<DeviceScreen> {
         ],
       ),
       body: StreamBuilder<DatabaseEvent>(
-        stream: _dbRef.onValue.asBroadcastStream(),
+        stream: _dbRef.orderByChild('usuario').equalTo(currentUser.id).onValue,
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             return Center(child: Text('Error: ${snapshot.error}'));
@@ -166,7 +181,39 @@ class _DeviceScreenState extends State<DeviceScreen> {
           }
 
           if (snapshot.data!.snapshot.value == null) {
-            return const Center(child: Text('No hay enchufes registrados.'));
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text(
+                    'No tienes enchufes registrados.',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => RegisterDeviceScreen(
+                            onDeviceAdded: (newDevice) async {
+                              final currentUser = CurrentUser().user;
+                              if (currentUser != null) {
+                                final deviceData = newDevice.toJson();
+                                deviceData['usuario'] = currentUser.id;
+                                await _dbRef.child(newDevice.id).set(deviceData);
+                                setState(() {});
+                              }
+                            },
+                          ),
+                        ),
+                      );
+                    },
+                    child: const Text('Registrar un nuevo enchufe'),
+                  ),
+                ],
+              ),
+            );
           }
 
           final data = snapshot.data!.snapshot.value;

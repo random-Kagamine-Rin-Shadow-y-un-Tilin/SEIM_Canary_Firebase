@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:seim_canary/services/current_user.dart';
 
 class HistorialScreen extends StatefulWidget {
   const HistorialScreen({super.key});
@@ -20,81 +21,112 @@ class _HistorialScreenState extends State<HistorialScreen> {
   }
 
   void obtenerHistorialDesdeFirebase() {
-  _dbRef.onValue.listen((event) {
-    if (!mounted) return;
+    final currentUser = CurrentUser().user;
 
-    try {
-      final data = event.snapshot.value;
-      if (data == null) {
-        setState(() => historial = {});
-        return;
+    if (currentUser == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se encontró un usuario autenticado')),
+        );
       }
+      return;
+    }
 
-      // Manejo de datos como lista o mapa
-      Map<String, dynamic> enchufesData;
-      if (data is List) {
-        enchufesData = {
-          for (int i = 0; i < data.length; i++) i.toString(): data[i] ?? {}
-        };
-      } else if (data is Map) {
-        enchufesData = Map<String, dynamic>.from(data);
-      } else {
-        throw Exception('Formato de datos no compatible');
-      }
+    _dbRef.orderByChild('usuario').equalTo(currentUser.id).onValue.listen((event) {
+      if (!mounted) return;
 
-      // Procesar historial
-      Map<String, List<Map<String, dynamic>>> tempHistorial = {};
-      enchufesData.forEach((clave, enchufeData) {
-        if (enchufeData is Map) {
-          final categoria = enchufeData['categoria'] as Map?;
-          final rawTiempo = enchufeData['tiempo'];
+      try {
+        final data = event.snapshot.value;
+        if (data == null) {
+          setState(() => historial = {});
+          return;
+        }
 
-          final dispositivo = categoria?['dispositivo'] ?? 'Sin dispositivo';
-          final tipo = categoria?['tipo'] ?? 'Sin tipo';
+        // Process data as either List or Map
+        Map<String, dynamic> enchufesData;
+        if (data is List) {
+          enchufesData = {
+            for (int i = 0; i < data.length; i++)
+              if (data[i] != null) i.toString(): data[i]
+          };
+        } else if (data is Map) {
+          enchufesData = Map<String, dynamic>.from(data);
+        } else {
+          throw Exception('Formato de datos no compatible');
+        }
 
-          // Convertir el tiempo en un Map uniforme
-          Map<String, dynamic> tiempoData = {};
-          if (rawTiempo is Map) {
-            tiempoData = Map<String, dynamic>.from(rawTiempo);
-          } else if (rawTiempo is List) {
-            for (int i = 0; i < rawTiempo.length; i++) {
-              final item = rawTiempo[i];
-              if (item != null) {
-                tiempoData[i.toString()] = item;
+        // Process history data
+        Map<String, List<Map<String, dynamic>>> tempHistorial = {};
+
+        enchufesData.forEach((deviceId, enchufeData) {
+          if (enchufeData is Map) {
+            // Verify this device belongs to the current user
+            if (enchufeData['usuario'] != currentUser.id) return;
+
+            final nombre = enchufeData['nombre'] ?? 'Sin nombre';
+            final rawTiempo = enchufeData['tiempo'];
+
+            // Convert time data to a uniform Map
+            Map<String, dynamic> tiempoData = {};
+            if (rawTiempo is Map) {
+              tiempoData = Map<String, dynamic>.from(rawTiempo);
+            } else if (rawTiempo is List) {
+              for (int i = 0; i < rawTiempo.length; i++) {
+                final item = rawTiempo[i];
+                if (item != null) {
+                  tiempoData[i.toString()] = item;
+                }
               }
             }
+
+            tiempoData.forEach((fecha, tiempo) {
+              if (tiempo is Map && tiempo.containsKey('tiempo')) {
+                final tiempoEnMinutos = tiempo['tiempo'] is num
+                    ? (tiempo['tiempo'] as num).toDouble()
+                    : double.tryParse('${tiempo['tiempo']}') ?? 0.0;
+
+                tempHistorial.putIfAbsent(nombre, () => []).add({
+                  'fecha': fecha.toString(),
+                  'tiempo': tiempoEnMinutos,
+                  'deviceId': deviceId,
+                });
+              }
+            });
           }
+        });
 
-          tiempoData.forEach((fecha, tiempo) {
-            if (tiempo is Map && tiempo.containsKey('tiempo')) {
-              final tiempoEnMinutos = tiempo['tiempo'] is num
-                  ? (tiempo['tiempo'] as num).toDouble()
-                  : double.tryParse('${tiempo['tiempo']}') ?? 0.0;
-
-              tempHistorial.putIfAbsent(dispositivo, () => []).add({
-                'tipo': tipo,
-                'fecha': fecha.toString(),
-                'tiempo': tiempoEnMinutos,
-              });
-            }
-          });
+        if (mounted) {
+          setState(() => historial = tempHistorial);
         }
-      });
-
-      setState(() => historial = tempHistorial);
-    } catch (e) {
-      print('Error al procesar datos: $e');
-    }
-  });
-}
-
+      } catch (e) {
+        print('Error al procesar datos: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error al cargar datos: $e')),
+          );
+        }
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("Historial de Enchufes")),
       body: historial.isEmpty
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text(
+                    "No hay datos de historial disponibles.",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                ],
+              ),
+            )
           : SingleChildScrollView(
               child: Column(
                 children: historial.entries.map((entry) {
@@ -104,7 +136,7 @@ class _HistorialScreenState extends State<HistorialScreen> {
                       elevation: 5,
                       child: ExpansionTile(
                         title: Text(
-                          "${entry.key} - Tipo: ${entry.value.first['tipo'] ?? 'Desconocido'}",
+                          entry.key,
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -134,6 +166,9 @@ class BarChartWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Sort data by date
+    datos.sort((a, b) => (a['fecha'] ?? '').compareTo(b['fecha'] ?? ''));
+
     List<BarChartGroupData> barras = [];
     List<String> fechas = [];
     double maxTiempo = 0;
@@ -184,7 +219,7 @@ class BarChartWidget extends StatelessWidget {
                     child: Text(
                       "${value.toInt()} min",
                       textAlign: TextAlign.right,
-                      style: const TextStyle(fontSize: 12)
+                      style: const TextStyle(fontSize: 12),
                     ),
                   );
                 },
@@ -196,9 +231,12 @@ class BarChartWidget extends StatelessWidget {
                 getTitlesWidget: (value, meta) {
                   final index = value.toInt();
                   if (index >= 0 && index < fechas.length) {
-                    return Text(
-                      fechas[index],
-                      style: const TextStyle(fontSize: 10),
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 4.0),
+                      child: Text(
+                        fechas[index],
+                        style: const TextStyle(fontSize: 10),
+                      ),
                     );
                   }
                   return const SizedBox.shrink();
